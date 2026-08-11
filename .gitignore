@@ -1,6 +1,26 @@
+# Local design tooling
 .superpowers/
+work/
+
+# Dependencies and build output
+node_modules/
+.next/
+out/
+build/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local environment values
 .env
 .env.local
 .env.*.local
-.next/
-node_modules/
+!.env.example
+
+# Deployment and editor artifacts
+.vercel/
+.DS_Store
+*.pem
+*.log
