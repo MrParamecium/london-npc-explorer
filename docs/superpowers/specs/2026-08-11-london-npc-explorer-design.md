@@ -40,7 +40,7 @@ V1 covers Greater London only. It is an API-first-internal design, but it does n
 - NPC text and dialogue: official DeepSeek API using `deepseek-v4-flash`.
 - NPC portrait: GPT Image 2 through OpenRouter.
 - Visual layout: three-column Explorer Workbench.
-- Visual language: restrained dark Night Glass.
+- Visual language: bright Transit Paper.
 - Loading behaviour: the selected location and street scene remain visible while the NPC panel shows progress.
 - Reveal behaviour: the profile and portrait appear together.
 - Login timing: map browsing and location inspection are public; login is required when the user requests NPC generation.
@@ -57,7 +57,13 @@ The application opens directly into the Explorer Workbench rather than a marketi
 - Centre: interactive map or real Street View for the selected point.
 - Right: NPC portrait, profile, generation progress, and chat.
 
-The interface uses dark neutral surfaces, a small number of translucent panels, strong text contrast, cyan status accents, and amber progress accents. Glass effects are limited to major overlays and side panels so the application does not become visually noisy or resemble a generic AI dashboard.
+The interface uses a cool off-white canvas, paper-white panels, deep navy text,
+route-map blue for primary actions, and controlled London red for warnings and
+portrait accents. Map surfaces use pale blue-grey blocks with white roads so the
+scene remains legible without becoming visually heavy. Transparency is limited to
+temporary overlays; the main workbench uses opaque surfaces and crisp borders.
+The existing Explorer Workbench layout, typography scale, spacing, and interaction
+patterns remain unchanged.
 
 ### 5.2 Main Flow
 
