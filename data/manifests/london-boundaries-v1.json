@@ -1,0 +1,77 @@
+{
+  "transformVersion": "london-boundaries-v1",
+  "license": {
+    "name": "Open Government Licence v3.0",
+    "url": "https://www.ons.gov.uk/methodology/geography/licences",
+    "attribution": "Source: Office for National Statistics licensed under the Open Government Licence v.3.0. Contains OS data © Crown copyright and database right 2026."
+  },
+  "lsoaLookup": {
+    "itemId": "f29a49574cc84f6d8e6e59ce2d8efb18",
+    "metadataSha256": "fc27acedc677bfbf843f6a7a18e6f5e8b444ab7a877dc03cf1ab2c36bc193dba",
+    "contentSha256": "8d57357d9f37f6961eb1ed8ed05f23f6c3f393227fb64d1c4e9247e228bf26cf",
+    "featureServiceUrl": "https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/LSOA21_WD25_LAD25_EW_LU_v2/FeatureServer",
+    "objectIdField": "ObjectId",
+    "codeField": "LSOA21CD",
+    "where": "LAD25CD LIKE 'E09%'",
+    "expectedCount": 4994
+  },
+  "datasets": [
+    {
+      "source": "ons-lsoa-2021-boundaries",
+      "releaseLabel": "LSOA December 2021 BGC V5",
+      "sourcePublishedAt": "2024-07-09T15:30:22.000Z",
+      "itemId": "68515293204e43ca8ab56fa13ae8a547",
+      "metadataSha256": "6a844cda1e7883e4daed2fbfae7247a377874dc7bd6f8679f369684871e946ef",
+      "contentSha256": "094a7a95cfe243eb839e7e46fdfcc1eb4e3b56b9aefa6da1eef6cb5504882d31",
+      "featureServiceUrl": "https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/Lower_layer_Super_Output_Areas_December_2021_Boundaries_EW_BGC_V5/FeatureServer",
+      "level": "lsoa",
+      "objectIdField": "FID",
+      "codeField": "LSOA21CD",
+      "nameField": "LSOA21NM",
+      "parentCodeField": null,
+      "where": "1=1",
+      "geometryEnvelope": "-0.510375,51.286760,0.334015,51.691874",
+      "expectedSourceCount": 5853,
+      "expectedImportedCount": 4994,
+      "selection": "lsoaLookup"
+    },
+    {
+      "source": "ons-wards-may-2026-boundaries",
+      "releaseLabel": "Wards May 2026 BGC",
+      "sourcePublishedAt": "2026-08-05T14:08:13.000Z",
+      "itemId": "10c346276bf64c588916179d01c6e68f",
+      "metadataSha256": "85977c43c200189bdd7726bd180a1a5f97d38e63898a89b3fd71f6a294e8d1fe",
+      "contentSha256": "f1b2f2f7072784bbff374bb0b7f0e6cf6c0c7344bccd20cfd19f18df3039e1ad",
+      "featureServiceUrl": "https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/WD_MAY_2026_UK_BGC/FeatureServer",
+      "level": "ward",
+      "objectIdField": "FID",
+      "codeField": "WD26CD",
+      "nameField": "WD26NM",
+      "parentCodeField": "LAD26CD",
+      "where": "LAD26CD LIKE 'E09%'",
+      "geometryEnvelope": null,
+      "expectedSourceCount": 704,
+      "expectedImportedCount": 704,
+      "selection": "where"
+    },
+    {
+      "source": "ons-lad-may-2025-boundaries",
+      "releaseLabel": "LAD May 2025 BGC V2",
+      "sourcePublishedAt": "2025-07-31T10:08:17.000Z",
+      "itemId": "0b8528fb4132495181d82bb65c5e370a",
+      "metadataSha256": "0fb9627a8e42ca223b54b4bac1d4b1262eddebd9910b392d5e8564ce8b65d112",
+      "contentSha256": "e5548f872ff62f0117ff0f46ef022c69578d8c9e4c9066188e78460c4e42e682",
+      "featureServiceUrl": "https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/LAD_MAY_2025_UK_BGC_V2/FeatureServer",
+      "level": "borough",
+      "objectIdField": "FID",
+      "codeField": "LAD25CD",
+      "nameField": "LAD25NM",
+      "parentCodeField": null,
+      "where": "LAD25CD LIKE 'E09%'",
+      "geometryEnvelope": null,
+      "expectedSourceCount": 33,
+      "expectedImportedCount": 33,
+      "selection": "where"
+    }
+  ]
+}

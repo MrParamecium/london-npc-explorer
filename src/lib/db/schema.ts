@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   geometry,
   index,
   integer,
@@ -25,6 +26,12 @@ import type {
 } from "@/lib/npc/contracts";
 
 type JsonObject = Record<string, unknown>;
+
+const multiPolygon4326 = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return "geometry(MultiPolygon,4326)";
+  },
+});
 
 export const datasetStateEnum = pgEnum("dataset_state", [
   "pending",
@@ -93,6 +100,9 @@ export const datasetVersions = pgTable(
       table.releaseLabel,
       table.transformVersion,
     ),
+    uniqueIndex("dataset_versions_one_active_source_unique")
+      .on(table.source)
+      .where(sql`${table.state} = 'active'`),
   ],
 );
 
@@ -128,6 +138,44 @@ export const areaStatistics = pgTable(
       "area_statistics_sample_size_nonnegative",
       sql`${table.sampleSize} is null or ${table.sampleSize} >= 0`,
     ),
+  ],
+);
+
+export const geographyBoundaries = pgTable(
+  "geography_boundaries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    datasetVersionId: uuid("dataset_version_id")
+      .notNull()
+      .references(() => datasetVersions.id, { onDelete: "cascade" }),
+    geographyLevel: geographyLevelEnum("geography_level").notNull(),
+    geographyCode: text("geography_code").notNull(),
+    name: text("name").notNull(),
+    parentCode: text("parent_code"),
+    boundary: multiPolygon4326("boundary").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("geography_boundaries_version_code_unique").on(
+      table.datasetVersionId,
+      table.geographyLevel,
+      table.geographyCode,
+    ),
+    index("geography_boundaries_level_code_idx").on(
+      table.geographyLevel,
+      table.geographyCode,
+    ),
+    index("geography_boundaries_boundary_gist_idx").using(
+      "gist",
+      table.boundary,
+    ),
+    check(
+      "geography_boundaries_code_nonempty",
+      sql`length(${table.geographyCode}) > 0`,
+    ),
+    check("geography_boundaries_name_nonempty", sql`length(${table.name}) > 0`),
   ],
 );
 
@@ -372,7 +420,10 @@ export const appUsersRelations = relations(appUsers, ({ many }) => ({
 
 export const datasetVersionsRelations = relations(
   datasetVersions,
-  ({ many }) => ({ statistics: many(areaStatistics) }),
+  ({ many }) => ({
+    statistics: many(areaStatistics),
+    geographyBoundaries: many(geographyBoundaries),
+  }),
 );
 
 export const areaStatisticsRelations = relations(areaStatistics, ({ one }) => ({
@@ -381,6 +432,16 @@ export const areaStatisticsRelations = relations(areaStatistics, ({ one }) => ({
     references: [datasetVersions.id],
   }),
 }));
+
+export const geographyBoundariesRelations = relations(
+  geographyBoundaries,
+  ({ one }) => ({
+    datasetVersion: one(datasetVersions, {
+      fields: [geographyBoundaries.datasetVersionId],
+      references: [datasetVersions.id],
+    }),
+  }),
+);
 
 export const locationsRelations = relations(locations, ({ many }) => ({
   generationJobs: many(generationJobs),

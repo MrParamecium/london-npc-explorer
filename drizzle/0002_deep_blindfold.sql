@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "dataset_versions_one_active_source_unique" ON "dataset_versions" USING btree ("source") WHERE "dataset_versions"."state" = 'active';

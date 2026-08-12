@@ -9,6 +9,7 @@ import {
   areaStatistics,
   conversations,
   datasetVersions,
+  geographyBoundaries,
   generationJobs,
   locations,
   messages,
@@ -17,10 +18,11 @@ import {
 } from "./schema";
 
 describe("database schema", () => {
-  it("defines the nine V1 domain tables", () => {
+  it("defines the V1 domain tables and official geography boundaries", () => {
     const tableNames = [
       appUsers,
       datasetVersions,
+      geographyBoundaries,
       areaStatistics,
       locations,
       generationJobs,
@@ -33,6 +35,7 @@ describe("database schema", () => {
     expect(tableNames).toEqual([
       "app_users",
       "dataset_versions",
+      "geography_boundaries",
       "area_statistics",
       "locations",
       "npc_generation_jobs",
@@ -41,6 +44,27 @@ describe("database schema", () => {
       "messages",
       "npc_memories",
     ]);
+  });
+
+  it("stores official boundaries as indexed WGS84 multipolygons", () => {
+    const columns = getTableColumns(geographyBoundaries);
+
+    expect(columns).toHaveProperty("datasetVersionId");
+    expect(columns).toHaveProperty("geographyLevel");
+    expect(columns).toHaveProperty("geographyCode");
+    expect(columns).toHaveProperty("name");
+    expect(columns).toHaveProperty("parentCode");
+    expect(columns).toHaveProperty("boundary");
+
+    const migration = readFileSync(
+      resolve(process.cwd(), "drizzle/0001_magenta_korvac.sql"),
+      "utf8",
+    );
+
+    expect(migration).toContain('"boundary" geometry(MultiPolygon,4326)');
+    expect(migration).toContain(
+      'CREATE INDEX "geography_boundaries_boundary_gist_idx"',
+    );
   });
 
   it("stores only stable Google identifiers on a location", () => {

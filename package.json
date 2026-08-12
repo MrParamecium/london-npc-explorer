@@ -12,9 +12,10 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "db:check": "drizzle-kit check",
     "db:verify": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/verify-database.ts",
+    "data:boundaries": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/data/import-london-boundaries.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
