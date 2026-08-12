@@ -3,10 +3,10 @@
 A coordinate-based London explorer that builds statistically grounded NPCs,
 generates their portrait, and keeps an ongoing conversation with them.
 
-Loop 0 runs entirely in mock mode. It includes the Night Glass explorer shell,
-Greater London coordinate validation, atomic mock generation, chat, and encounter
-history. External maps, data, authentication, models, and storage are added behind
-provider boundaries in later loops.
+The current location loop resolves official London LSOA, 2026 ward, and borough
+boundaries from Neon/PostGIS. Mock mode provides deterministic nearby context and
+a clickable 2D preview without Google billing. Live mode swaps in Google Maps,
+reverse geocoding, and Places without changing the application contract.
 
 ## Local Development
 
@@ -28,11 +28,14 @@ pnpm typecheck
 pnpm test
 pnpm test:e2e
 pnpm build
+pnpm secrets:check
 ```
 
 ## Project Notes
 
 - [V1 design](docs/superpowers/specs/2026-08-11-london-npc-explorer-design.md)
 - [Implementation plan](docs/superpowers/plans/2026-08-11-london-npc-explorer-implementation.md)
+- [Google Maps setup](docs/google-maps-setup.md)
+- [Overall architecture](docs/architecture.md)
 
 Secrets belong in `.env.local` and the Vercel environment, never in Git.
