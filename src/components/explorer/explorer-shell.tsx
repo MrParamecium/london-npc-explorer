@@ -1,7 +1,7 @@
 "use client";
 
-import type { CSSProperties, FormEvent } from "react";
-import { useMemo, useState } from "react";
+import type { CSSProperties, FormEvent, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Banknote,
   BriefcaseBusiness,
@@ -22,6 +22,21 @@ import type { ProviderMode } from "@/lib/providers/provider-mode";
 
 type Coordinates = { latitude: number; longitude: number };
 type ChatMessage = { id: number; role: "npc" | "user"; text: string };
+
+export type ExplorerResumeRequest = {
+  id: string;
+  coordinates: Coordinates;
+};
+
+type ExplorerAuthentication = {
+  status: "loading" | "signed_out" | "synchronizing" | "ready";
+  error: string | null;
+  requestGenerationSignIn: (coordinates: Coordinates) => void;
+  requestAccountSignIn: () => void;
+  accountControl: ReactNode;
+  resumeRequest: ExplorerResumeRequest | null;
+  clearResumeRequest: () => void;
+};
 
 const INITIAL_COORDINATES: Coordinates = {
   latitude: 51.5202,
@@ -87,8 +102,10 @@ function pinPosition({ latitude, longitude }: Coordinates): CSSProperties {
 
 export function ExplorerShell({
   providerMode,
+  authentication,
 }: {
   providerMode: ProviderMode;
+  authentication?: ExplorerAuthentication;
 }) {
   const [latitude, setLatitude] = useState(
     INITIAL_COORDINATES.latitude.toString(),
@@ -106,6 +123,7 @@ export function ExplorerShell({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [history, setHistory] = useState<number[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const lastResumeRequestRef = useRef<string | null>(null);
 
   const npc = MOCK_NPCS[npcIndex % MOCK_NPCS.length];
   const mapStyle = useMemo(() => pinPosition(coordinates), [coordinates]);
@@ -116,6 +134,23 @@ export function ExplorerShell({
   const areaContext = isInitialLocation
     ? "City of London / Greater London"
     : "Greater London";
+
+  const hasPrivateAccess = !authentication || authentication.status === "ready";
+
+  useEffect(() => {
+    const request = authentication?.resumeRequest;
+    if (!request || lastResumeRequestRef.current === request.id) return;
+
+    lastResumeRequestRef.current = request.id;
+    setLatitude(request.coordinates.latitude.toString());
+    setLongitude(request.coordinates.longitude.toString());
+    setCoordinates(request.coordinates);
+    setCoordinateError(null);
+    setGenerationState("generating");
+    setMessages([]);
+    finishGeneration(npcIndex % MOCK_NPCS.length);
+    authentication.clearResumeRequest();
+  }, [authentication, npcIndex]);
 
   function handleLocate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -154,12 +189,26 @@ export function ExplorerShell({
   }
 
   function generateNpc() {
+    if (!hasPrivateAccess) {
+      if (authentication?.status === "signed_out") {
+        authentication.requestGenerationSignIn(coordinates);
+      }
+      return;
+    }
+
     setGenerationState("generating");
     setMessages([]);
     finishGeneration(npcIndex % MOCK_NPCS.length);
   }
 
   function generateAnother() {
+    if (!hasPrivateAccess) {
+      if (authentication?.status === "signed_out") {
+        authentication.requestGenerationSignIn(coordinates);
+      }
+      return;
+    }
+
     const nextIndex = (npcIndex + 1) % MOCK_NPCS.length;
     setNpcIndex(nextIndex);
     setGenerationState("generating");
@@ -169,6 +218,13 @@ export function ExplorerShell({
 
   function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!hasPrivateAccess) {
+      if (authentication?.status === "signed_out") {
+        authentication.requestAccountSignIn();
+      }
+      return;
+    }
+
     const text = draft.trim();
     if (!text) return;
 
@@ -185,6 +241,13 @@ export function ExplorerShell({
   }
 
   function restoreEncounter(index: number) {
+    if (!hasPrivateAccess) {
+      if (authentication?.status === "signed_out") {
+        authentication.requestAccountSignIn();
+      }
+      return;
+    }
+
     setNpcIndex(index);
     setGenerationState("ready");
     setMessages([
@@ -199,6 +262,9 @@ export function ExplorerShell({
 
   const isGenerating = generationState === "generating";
   const isReady = generationState === "ready";
+  const isAuthenticationPending =
+    authentication?.status === "loading" ||
+    authentication?.status === "synchronizing";
 
   return (
     <div className="app-shell">
@@ -219,16 +285,25 @@ export function ExplorerShell({
             {coordinates.longitude.toFixed(4)}
           </span>
         </div>
-        <button
-          className="history-button"
-          type="button"
-          title="NPC history"
-          aria-expanded={historyOpen}
-          onClick={() => setHistoryOpen((current) => !current)}
-        >
-          <History size={17} />
-          <span>History</span>
-        </button>
+        <div className="topbar-actions">
+          <button
+            className="history-button"
+            type="button"
+            title="NPC history"
+            aria-expanded={historyOpen}
+            onClick={() => {
+              if (hasPrivateAccess) {
+                setHistoryOpen((current) => !current);
+              } else if (authentication?.status === "signed_out") {
+                authentication.requestAccountSignIn();
+              }
+            }}
+          >
+            <History size={17} />
+            <span>History</span>
+          </button>
+          {authentication?.accountControl}
+        </div>
       </header>
 
       {historyOpen ? (
@@ -416,16 +491,36 @@ export function ExplorerShell({
                 className="primary-button"
                 type="button"
                 onClick={generateNpc}
-                disabled={isGenerating}
-                aria-label={isGenerating ? "Building profile" : "Generate NPC"}
+                disabled={isGenerating || isAuthenticationPending}
+                aria-label={
+                  isGenerating
+                    ? "Building profile"
+                    : isAuthenticationPending
+                      ? "Connecting account"
+                      : "Generate NPC"
+                }
               >
-                {isGenerating ? (
+                {isGenerating || isAuthenticationPending ? (
                   <LoaderCircle className="spin" size={17} />
                 ) : (
                   <Sparkles size={17} />
                 )}
-                {isGenerating ? "Building profile" : "Generate NPC"}
+                {isGenerating
+                  ? "Building profile"
+                  : isAuthenticationPending
+                    ? "Connecting account"
+                    : "Generate NPC"}
               </button>
+              {authentication?.status === "synchronizing" ? (
+                <p className="auth-inline-status" role="status">
+                  Connecting your account...
+                </p>
+              ) : null}
+              {authentication?.error ? (
+                <p className="form-error auth-inline-status" role="alert">
+                  {authentication.error}
+                </p>
+              ) : null}
             </div>
           ) : (
             <div className="npc-profile">
