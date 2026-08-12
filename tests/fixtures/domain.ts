@@ -58,7 +58,8 @@ export const validResolvedLocation = {
     {
       placeId: "ChIJfixturePlace001",
       name: "Barbican Centre",
-      primaryType: "cultural_facility",
+      primaryType: "performing_arts_theater",
+      category: "culture_community",
       shortAddress: "Silk Street",
       coordinates: { latitude: 51.5201, longitude: -0.0936 },
     },

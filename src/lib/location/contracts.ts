@@ -48,11 +48,22 @@ export const ResolvedAddressSchema = z
   })
   .strict();
 
+export const NearbyPlaceCategorySchema = z.enum([
+  "food",
+  "retail",
+  "transit",
+  "education",
+  "healthcare",
+  "park",
+  "culture_community",
+]);
+
 export const NearbyPlaceSchema = z
   .object({
     placeId: GooglePlaceIdSchema,
     name: z.string().trim().min(1).max(200),
     primaryType: z.string().trim().min(1).max(120),
+    category: NearbyPlaceCategorySchema,
     shortAddress: z.string().trim().min(1).max(300).nullable(),
     coordinates: CoordinatesSchema,
   })
@@ -131,6 +142,7 @@ export type OfficialGeographyLabel = z.infer<
 >;
 export type ResolvedGeography = z.infer<typeof ResolvedGeographySchema>;
 export type ResolvedAddress = z.infer<typeof ResolvedAddressSchema>;
+export type NearbyPlaceCategory = z.infer<typeof NearbyPlaceCategorySchema>;
 export type NearbyPlace = z.infer<typeof NearbyPlaceSchema>;
 export type ResolvedLocation = z.infer<typeof ResolvedLocationSchema>;
 export type LocationResolutionError = z.infer<
