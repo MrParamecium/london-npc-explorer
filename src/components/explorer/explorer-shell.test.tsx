@@ -2,7 +2,15 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { validResolvedLocation } from "../../../tests/fixtures/domain";
 import { ExplorerShell } from "./explorer-shell";
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
 
 describe("ExplorerShell", () => {
   it("renders the London coordinate workbench", () => {
@@ -18,7 +26,21 @@ describe("ExplorerShell", () => {
 
   it("rejects a coordinate outside Greater London", async () => {
     const user = userEvent.setup();
-    render(<ExplorerShell providerMode="mock" />);
+    const unsupported = {
+      coordinates: { latitude: 40.7128, longitude: -74.006 },
+      supported: false,
+      geography: null,
+      address: null,
+      nearbyPlaces: [],
+      provenance: {
+        geographyDatasets: ["LAD May 2025 BGC V2"],
+        googleResolvedAt: null,
+      },
+    };
+    const locationFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse(unsupported));
+    render(<ExplorerShell providerMode="mock" locationFetch={locationFetch} />);
 
     await user.clear(screen.getByLabelText("Latitude"));
     await user.type(screen.getByLabelText("Latitude"), "40.7128");
@@ -27,8 +49,31 @@ describe("ExplorerShell", () => {
     await user.click(screen.getByRole("button", { name: "Locate" }));
 
     expect(
-      screen.getByText("This version supports Greater London coordinates."),
-    ).toBeInTheDocument();
+      await screen.findAllByRole("heading", {
+        name: "Outside Greater London",
+      }),
+    ).toHaveLength(2);
+    expect(
+      screen.getByRole("button", { name: "Outside V1 coverage" }),
+    ).toBeDisabled();
+  });
+
+  it("shows official geography and nearby places after locating", async () => {
+    const user = userEvent.setup();
+    const locationFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse(validResolvedLocation));
+    render(<ExplorerShell providerMode="mock" locationFetch={locationFetch} />);
+
+    await user.click(screen.getByRole("button", { name: "Locate" }));
+
+    expect(
+      await screen.findAllByRole("heading", { name: "Barbican" }),
+    ).toHaveLength(2);
+    expect(screen.getByText("City of London 001A")).toBeInTheDocument();
+    expect(screen.getByText("Aldersgate")).toBeInTheDocument();
+    expect(screen.getByText("Barbican Centre")).toBeInTheDocument();
+    expect(locationFetch).toHaveBeenCalledTimes(1);
   });
 
   it("reveals a complete mock NPC after generation", async () => {

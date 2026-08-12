@@ -20,18 +20,36 @@ import { SignInModal } from "./sign-in-modal";
 export function AuthAwareExplorer({
   authEnabled,
   providerMode,
+  googleMapsBrowserKey,
 }: {
   authEnabled: boolean;
   providerMode: ProviderMode;
+  googleMapsBrowserKey?: string;
 }) {
   if (!authEnabled) {
-    return <ExplorerShell providerMode={providerMode} />;
+    return (
+      <ExplorerShell
+        providerMode={providerMode}
+        googleMapsBrowserKey={googleMapsBrowserKey}
+      />
+    );
   }
 
-  return <ClerkExplorer providerMode={providerMode} />;
+  return (
+    <ClerkExplorer
+      providerMode={providerMode}
+      googleMapsBrowserKey={googleMapsBrowserKey}
+    />
+  );
 }
 
-function ClerkExplorer({ providerMode }: { providerMode: ProviderMode }) {
+function ClerkExplorer({
+  providerMode,
+  googleMapsBrowserKey,
+}: {
+  providerMode: ProviderMode;
+  googleMapsBrowserKey?: string;
+}) {
   const { isLoaded, isSignedIn, userId } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [synchronizedUserId, setSynchronizedUserId] = useState<string | null>(
@@ -111,6 +129,7 @@ function ClerkExplorer({ providerMode }: { providerMode: ProviderMode }) {
       <ExplorerShell
         key={userId ?? "signed-out"}
         providerMode={providerMode}
+        googleMapsBrowserKey={googleMapsBrowserKey}
         authentication={{
           status: !isLoaded
             ? "loading"

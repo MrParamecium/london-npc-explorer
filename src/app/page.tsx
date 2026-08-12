@@ -6,6 +6,9 @@ export default function Home() {
     <AuthAwareExplorer
       authEnabled={env.clerkEnabled}
       providerMode={env.providerMode}
+      googleMapsBrowserKey={
+        env.providerMode === "live" ? env.googleMapsBrowserKey : undefined
+      }
     />
   );
 }

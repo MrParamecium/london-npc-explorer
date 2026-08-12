@@ -1,26 +1,50 @@
 "use client";
 
-import type { CSSProperties, FormEvent, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import type { CSSProperties, FormEvent, MouseEvent, ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertCircle,
   Banknote,
   BriefcaseBusiness,
   Check,
   Clock3,
+  Coffee,
   Crosshair,
+  GraduationCap,
+  HeartPulse,
   History,
+  Landmark,
   Languages,
   LoaderCircle,
   MapPin,
   MessageSquareText,
   SendHorizontal,
   Shirt,
+  ShoppingBag,
   Sparkles,
+  TrainFront,
+  Trees,
 } from "lucide-react";
 
+import type {
+  Coordinates,
+  NearbyPlaceCategory,
+  ResolvedLocation,
+} from "@/lib/location/contracts";
 import type { ProviderMode } from "@/lib/providers/provider-mode";
 
-type Coordinates = { latitude: number; longitude: number };
+import { useLocationResolution } from "./use-location-resolution";
+
+const GoogleMap = dynamic(() => import("./google-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="map-load-status" role="status">
+      Loading map...
+    </div>
+  ),
+});
+
 type ChatMessage = { id: number; role: "npc" | "user"; text: string };
 
 export type ExplorerResumeRequest = {
@@ -75,12 +99,40 @@ const MOCK_NPCS = [
   },
 ] as const;
 
-function isInsideGreaterLondon({ latitude, longitude }: Coordinates) {
+const PLACE_CATEGORY_ICONS = {
+  food: Coffee,
+  retail: ShoppingBag,
+  transit: TrainFront,
+  education: GraduationCap,
+  healthcare: HeartPulse,
+  park: Trees,
+  culture_community: Landmark,
+} satisfies Record<NearbyPlaceCategory, typeof Coffee>;
+
+function getAreaName(
+  result: ResolvedLocation | null,
+  status: ReturnType<typeof useLocationResolution>["status"],
+) {
+  if (!result) {
+    return status === "resolving" ? "Resolving location" : "Selected point";
+  }
+
+  if (!result.supported) return "Outside Greater London";
   return (
-    latitude >= GREATER_LONDON_BOUNDS.south &&
-    latitude <= GREATER_LONDON_BOUNDS.north &&
-    longitude >= GREATER_LONDON_BOUNDS.west &&
-    longitude <= GREATER_LONDON_BOUNDS.east
+    result.address?.neighbourhood ??
+    result.geography.ward?.name ??
+    result.geography.borough.name
+  );
+}
+
+function getAreaContext(result: ResolvedLocation | null) {
+  if (!result) return "Location details not resolved";
+  if (!result.supported) return "This coordinate is outside V1 coverage.";
+  return (
+    result.address?.formatted ??
+    [result.geography.ward?.name, result.geography.borough.name]
+      .filter(Boolean)
+      .join(" / ")
   );
 }
 
@@ -102,10 +154,14 @@ function pinPosition({ latitude, longitude }: Coordinates): CSSProperties {
 
 export function ExplorerShell({
   providerMode,
+  googleMapsBrowserKey,
   authentication,
+  locationFetch,
 }: {
   providerMode: ProviderMode;
+  googleMapsBrowserKey?: string;
   authentication?: ExplorerAuthentication;
+  locationFetch?: typeof fetch;
 }) {
   const [latitude, setLatitude] = useState(
     INITIAL_COORDINATES.latitude.toString(),
@@ -124,16 +180,14 @@ export function ExplorerShell({
   const [history, setHistory] = useState<number[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const lastResumeRequestRef = useRef<string | null>(null);
+  const location = useLocationResolution(locationFetch);
+  const resolveLocation = location.resolve;
 
   const npc = MOCK_NPCS[npcIndex % MOCK_NPCS.length];
   const mapStyle = useMemo(() => pinPosition(coordinates), [coordinates]);
-  const isInitialLocation =
-    coordinates.latitude === INITIAL_COORDINATES.latitude &&
-    coordinates.longitude === INITIAL_COORDINATES.longitude;
-  const areaName = isInitialLocation ? "Clerkenwell" : "Selected London point";
-  const areaContext = isInitialLocation
-    ? "City of London / Greater London"
-    : "Greater London";
+  const resolvedLocation = location.result;
+  const areaName = getAreaName(resolvedLocation, location.status);
+  const areaContext = getAreaContext(resolvedLocation);
 
   const hasPrivateAccess = !authentication || authentication.status === "ready";
 
@@ -152,6 +206,19 @@ export function ExplorerShell({
     authentication.clearResumeRequest();
   }, [authentication, npcIndex]);
 
+  const selectCoordinates = useCallback(
+    async (nextCoordinates: Coordinates) => {
+      setLatitude(nextCoordinates.latitude.toFixed(6));
+      setLongitude(nextCoordinates.longitude.toFixed(6));
+      setCoordinates(nextCoordinates);
+      setCoordinateError(null);
+      setGenerationState("idle");
+      setMessages([]);
+      await resolveLocation(nextCoordinates);
+    },
+    [resolveLocation],
+  );
+
   function handleLocate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextCoordinates = {
@@ -162,16 +229,43 @@ export function ExplorerShell({
     if (
       !Number.isFinite(nextCoordinates.latitude) ||
       !Number.isFinite(nextCoordinates.longitude) ||
-      !isInsideGreaterLondon(nextCoordinates)
+      nextCoordinates.latitude < -90 ||
+      nextCoordinates.latitude > 90 ||
+      nextCoordinates.longitude < -180 ||
+      nextCoordinates.longitude > 180
     ) {
-      setCoordinateError("This version supports Greater London coordinates.");
+      setCoordinateError("Enter a valid latitude and longitude.");
       return;
     }
 
-    setCoordinateError(null);
-    setCoordinates(nextCoordinates);
-    setGenerationState("idle");
-    setMessages([]);
+    void selectCoordinates(nextCoordinates);
+  }
+
+  const handleMapSelect = useCallback(
+    (nextCoordinates: Coordinates) => {
+      void selectCoordinates(nextCoordinates);
+    },
+    [selectCoordinates],
+  );
+
+  function handleMockMapClick(event: MouseEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.min(
+      1,
+      Math.max(0, (event.clientX - rect.left) / rect.width),
+    );
+    const y = Math.min(
+      1,
+      Math.max(0, (event.clientY - rect.top) / rect.height),
+    );
+    handleMapSelect({
+      latitude:
+        GREATER_LONDON_BOUNDS.north -
+        y * (GREATER_LONDON_BOUNDS.north - GREATER_LONDON_BOUNDS.south),
+      longitude:
+        GREATER_LONDON_BOUNDS.west +
+        x * (GREATER_LONDON_BOUNDS.east - GREATER_LONDON_BOUNDS.west),
+    });
   }
 
   function finishGeneration(index: number) {
@@ -265,6 +359,22 @@ export function ExplorerShell({
   const isAuthenticationPending =
     authentication?.status === "loading" ||
     authentication?.status === "synchronizing";
+  const isResolvingLocation = location.status === "resolving";
+  const locationUnsupported =
+    location.status === "unsupported" ||
+    (resolvedLocation !== null && !resolvedLocation.supported);
+  const nearbyPlaces =
+    resolvedLocation?.supported === true ? resolvedLocation.nearbyPlaces : [];
+
+  const locationStatus = {
+    idle: { label: "Ready to locate", icon: Check },
+    resolving: { label: "Resolving location", icon: LoaderCircle },
+    ready: { label: "Location resolved", icon: Check },
+    partial: { label: "Partial location", icon: AlertCircle },
+    unsupported: { label: "Outside Greater London", icon: AlertCircle },
+    error: { label: "Lookup failed", icon: AlertCircle },
+  }[location.status];
+  const LocationStatusIcon = locationStatus.icon;
 
   return (
     <div className="app-shell">
@@ -363,44 +473,103 @@ export function ExplorerShell({
                 onChange={(event) => setLongitude(event.target.value)}
               />
             </label>
-            <button className="secondary-button locate-button" type="submit">
-              <Crosshair size={16} />
-              Locate
+            <button
+              className="secondary-button locate-button"
+              type="submit"
+              disabled={isResolvingLocation}
+            >
+              {isResolvingLocation ? (
+                <LoaderCircle className="spin" size={16} />
+              ) : (
+                <Crosshair size={16} />
+              )}
+              {isResolvingLocation ? "Locating" : "Locate"}
             </button>
             {coordinateError ? (
               <p className="form-error" role="alert">
                 {coordinateError}
               </p>
             ) : null}
+            {location.error ? (
+              <p className="form-error" role="alert">
+                {location.error}
+              </p>
+            ) : null}
           </form>
 
-          <div className="location-summary">
-            <div className="summary-status">
-              <Check size={14} aria-hidden="true" />
-              Coordinate ready
+          <div
+            className={`location-summary ${location.stale ? "is-stale" : ""}`}
+            aria-busy={isResolvingLocation}
+          >
+            <div className={`summary-status status-${location.status}`}>
+              <LocationStatusIcon
+                className={isResolvingLocation ? "spin" : undefined}
+                size={14}
+                aria-hidden="true"
+              />
+              {locationStatus.label}
             </div>
-            <h3>{isInitialLocation ? "Clerkenwell edge" : areaName}</h3>
+            <h3>{areaName}</h3>
             <p>{areaContext}</p>
             <dl>
-              <div>
-                <dt>Area type</dt>
-                <dd>Central mixed-use</dd>
-              </div>
+              {resolvedLocation?.supported ? (
+                <>
+                  <div>
+                    <dt>LSOA</dt>
+                    <dd>{resolvedLocation.geography.lsoa.name}</dd>
+                  </div>
+                  <div>
+                    <dt>Ward</dt>
+                    <dd>{resolvedLocation.geography.ward?.name ?? "None"}</dd>
+                  </div>
+                  <div>
+                    <dt>Borough</dt>
+                    <dd>{resolvedLocation.geography.borough.name}</dd>
+                  </div>
+                </>
+              ) : null}
               <div>
                 <dt>Time zone</dt>
                 <dd>Europe/London</dd>
               </div>
               <div>
                 <dt>Dataset</dt>
-                <dd>London mock 0.1</dd>
+                <dd>
+                  {resolvedLocation?.provenance.geographyDatasets.at(-1) ??
+                    "Official London boundaries"}
+                </dd>
               </div>
             </dl>
           </div>
 
           <div className="data-note">
             <Clock3 size={15} aria-hidden="true" />
-            <p>Profile evidence will resolve from LSOA to London fallback.</p>
+            <p>
+              {resolvedLocation?.supported
+                ? `${nearbyPlaces.length} nearby places resolved for local context.`
+                : "Profile evidence resolves from LSOA to London fallback."}
+            </p>
           </div>
+
+          {nearbyPlaces.length > 0 ? (
+            <div className="nearby-list" aria-label="Nearby places">
+              <p className="eyebrow">Nearby</p>
+              <ul>
+                {nearbyPlaces.map((place) => {
+                  const CategoryIcon = PLACE_CATEGORY_ICONS[place.category];
+                  return (
+                    <li key={place.placeId}>
+                      <CategoryIcon size={14} aria-hidden="true" />
+                      <span>
+                        <strong>{place.name}</strong>
+                        <small>{place.primaryType.replaceAll("_", " ")}</small>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
         </aside>
 
         <section className="map-workspace" aria-labelledby="map-heading">
@@ -415,44 +584,66 @@ export function ExplorerShell({
             </div>
           </div>
 
-          <div
-            className="map-canvas"
-            style={mapStyle}
-            aria-label={`Map preview at ${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}`}
-          >
-            <div className="map-block block-a" />
-            <div className="map-block block-b" />
-            <div className="map-block block-c" />
-            <div className="map-block block-d" />
-            <div className="map-road road-a" />
-            <div className="map-road road-b" />
-            <div className="map-road road-c" />
-            <div className="map-road road-d" />
-            <div className="map-green" aria-label="Public green space" />
-            <span className="street-label label-a">Goswell Road</span>
-            <span className="street-label label-b">Clerkenwell Road</span>
-            <span className="street-label label-c">Aldersgate Street</span>
-            <span className="district-label">BARBICAN</span>
-            <span className="district-label district-label-two">
-              FARRINGDON
-            </span>
-            <div className="map-pin" aria-hidden="true">
-              <span />
-            </div>
-            <div className="coordinate-plate">
-              <MapPin size={15} />
-              <div>
-                <strong>Selected point</strong>
-                <span>
-                  {coordinates.latitude.toFixed(4)},{" "}
-                  {coordinates.longitude.toFixed(4)}
-                </span>
+          {googleMapsBrowserKey ? (
+            <GoogleMap
+              apiKey={googleMapsBrowserKey}
+              coordinates={coordinates}
+              nearbyPlaces={nearbyPlaces}
+              onSelect={handleMapSelect}
+            />
+          ) : (
+            <div
+              className="map-canvas mock-map-canvas"
+              style={mapStyle}
+              aria-label={`Clickable map preview at ${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}`}
+              onClick={handleMockMapClick}
+            >
+              <div className="map-block block-a" />
+              <div className="map-block block-b" />
+              <div className="map-block block-c" />
+              <div className="map-block block-d" />
+              <div className="map-road road-a" />
+              <div className="map-road road-b" />
+              <div className="map-road road-c" />
+              <div className="map-road road-d" />
+              <div className="map-green" aria-label="Public green space" />
+              <span className="street-label label-a">Goswell Road</span>
+              <span className="street-label label-b">Clerkenwell Road</span>
+              <span className="street-label label-c">Aldersgate Street</span>
+              <span className="district-label">BARBICAN</span>
+              <span className="district-label district-label-two">
+                FARRINGDON
+              </span>
+              {nearbyPlaces.map((place) => (
+                <span
+                  className={`map-place-pin category-${place.category}`}
+                  style={pinPosition(place.coordinates)}
+                  title={`${place.name}: ${place.primaryType.replaceAll("_", " ")}`}
+                  key={place.placeId}
+                />
+              ))}
+              <div className="map-pin" aria-hidden="true">
+                <span />
               </div>
+              <div className="coordinate-plate">
+                <MapPin size={15} />
+                <div>
+                  <strong>Selected point</strong>
+                  <span>
+                    {coordinates.latitude.toFixed(4)},{" "}
+                    {coordinates.longitude.toFixed(4)}
+                  </span>
+                </div>
+              </div>
+              {isResolvingLocation ? (
+                <div className="map-resolving" role="status">
+                  <LoaderCircle className="spin" size={18} />
+                  Resolving
+                </div>
+              ) : null}
+              <p className="map-attribution">Local preview / mock mode</p>
             </div>
-            <p className="map-attribution">
-              Mock map / Google Maps in live mode
-            </p>
-          </div>
+          )}
         </section>
 
         <aside className="npc-rail" aria-labelledby="npc-heading">
@@ -491,13 +682,17 @@ export function ExplorerShell({
                 className="primary-button"
                 type="button"
                 onClick={generateNpc}
-                disabled={isGenerating || isAuthenticationPending}
+                disabled={
+                  isGenerating || isAuthenticationPending || locationUnsupported
+                }
                 aria-label={
-                  isGenerating
-                    ? "Building profile"
-                    : isAuthenticationPending
-                      ? "Connecting account"
-                      : "Generate NPC"
+                  locationUnsupported
+                    ? "Outside V1 coverage"
+                    : isGenerating
+                      ? "Building profile"
+                      : isAuthenticationPending
+                        ? "Connecting account"
+                        : "Generate NPC"
                 }
               >
                 {isGenerating || isAuthenticationPending ? (
@@ -505,11 +700,13 @@ export function ExplorerShell({
                 ) : (
                   <Sparkles size={17} />
                 )}
-                {isGenerating
-                  ? "Building profile"
-                  : isAuthenticationPending
-                    ? "Connecting account"
-                    : "Generate NPC"}
+                {locationUnsupported
+                  ? "Outside V1 coverage"
+                  : isGenerating
+                    ? "Building profile"
+                    : isAuthenticationPending
+                      ? "Connecting account"
+                      : "Generate NPC"}
               </button>
               {authentication?.status === "synchronizing" ? (
                 <p className="auth-inline-status" role="status">
