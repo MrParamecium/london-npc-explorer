@@ -321,4 +321,3 @@ Use focused commits after each passing checkpoint:
 
 Do not combine Google Cloud credentials, downloaded transient source archives, or
 test artifacts with any commit.
-

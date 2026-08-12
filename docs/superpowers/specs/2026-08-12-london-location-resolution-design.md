@@ -280,4 +280,3 @@ are never pasted into chat, screenshots, source files, commits, or documentation
 - [Maps JavaScript policy and attribution](https://developers.google.com/maps/documentation/javascript/policies)
 - [GLA statistical GIS boundary files](https://data.london.gov.uk/dataset/statistical-gis-boundary-files-for-london-20od9/)
 - [GLA London Boroughs](https://data.london.gov.uk/dataset/london-boroughs-e55pw)
-

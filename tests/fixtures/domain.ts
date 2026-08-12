@@ -24,6 +24,55 @@ export const validLocation = {
   inspectedAt: "2026-08-11T09:00:00.000Z",
 } as const;
 
+export const validResolvedLocation = {
+  coordinates: {
+    latitude: 51.5202,
+    longitude: -0.0979,
+  },
+  supported: true,
+  geography: {
+    lsoa: {
+      code: "E01000001",
+      name: "City of London 001A",
+      version: "lsoa-2021-bgc-v4",
+    },
+    ward: {
+      code: "E05009288",
+      name: "Aldersgate",
+      version: "wards-2025-bgc",
+    },
+    borough: {
+      code: "E09000001",
+      name: "City of London",
+      version: "london-boroughs-2025",
+    },
+  },
+  address: {
+    formatted: "Aldersgate Street, London EC1A, UK",
+    street: "Aldersgate Street",
+    neighbourhood: "Barbican",
+    postalCode: "EC1A",
+    placeId: "ChIJfixtureAddress01",
+  },
+  nearbyPlaces: [
+    {
+      placeId: "ChIJfixturePlace001",
+      name: "Barbican Centre",
+      primaryType: "cultural_facility",
+      shortAddress: "Silk Street",
+      coordinates: { latitude: 51.5201, longitude: -0.0936 },
+    },
+  ],
+  provenance: {
+    geographyDatasets: [
+      "lsoa-2021-bgc-v4",
+      "wards-2025-bgc",
+      "london-boroughs-2025",
+    ],
+    googleResolvedAt: "2026-08-12T09:00:00.000Z",
+  },
+} as const;
+
 export const validCanonicalProfile = {
   schemaVersion: 1,
   identity: {
