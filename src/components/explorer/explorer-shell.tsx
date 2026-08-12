@@ -39,8 +39,10 @@ import { useLocationResolution } from "./use-location-resolution";
 const GoogleMap = dynamic(() => import("./google-map"), {
   ssr: false,
   loading: () => (
-    <div className="map-load-status" role="status">
-      Loading map...
+    <div className="google-map-shell">
+      <p className="map-load-status" role="status">
+        Loading map...
+      </p>
     </div>
   ),
 });

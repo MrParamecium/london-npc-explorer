@@ -42,8 +42,8 @@ export function createLocationResolver(
       dependencies.locationAdapter.reverseGeocode(coordinates),
       dependencies.locationAdapter.searchNearby(coordinates),
     ]);
-    const googleResponded =
-      addressResult.status === "fulfilled" ||
+    const googleComplete =
+      addressResult.status === "fulfilled" &&
       nearbyResult.status === "fulfilled";
 
     return ResolvedLocationSchema.parse({
@@ -56,7 +56,7 @@ export function createLocationResolver(
         nearbyResult.status === "fulfilled" ? nearbyResult.value : [],
       provenance: {
         geographyDatasets: geography.datasets,
-        googleResolvedAt: googleResponded
+        googleResolvedAt: googleComplete
           ? (dependencies.now ?? (() => new Date()))().toISOString()
           : null,
       },

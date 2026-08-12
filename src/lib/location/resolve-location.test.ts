@@ -76,6 +76,31 @@ describe("createLocationResolver", () => {
     await expect(resolveLocation(coordinates)).resolves.toEqual({
       ...validResolvedLocation,
       address: null,
+      provenance: {
+        ...validResolvedLocation.provenance,
+        googleResolvedAt: null,
+      },
+    });
+  });
+
+  it("marks a successful address with failed Places as partial", async () => {
+    const resolveLocation = createLocationResolver({
+      resolveGeography: vi.fn().mockResolvedValue(supportedGeography),
+      locationAdapter: {
+        reverseGeocode: vi
+          .fn()
+          .mockResolvedValue(validResolvedLocation.address),
+        searchNearby: vi.fn().mockRejectedValue(new Error("places timeout")),
+      },
+    });
+
+    await expect(resolveLocation(coordinates)).resolves.toEqual({
+      ...validResolvedLocation,
+      nearbyPlaces: [],
+      provenance: {
+        ...validResolvedLocation.provenance,
+        googleResolvedAt: null,
+      },
     });
   });
 
