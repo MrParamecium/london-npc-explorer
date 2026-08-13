@@ -5,8 +5,6 @@ import type { CSSProperties, FormEvent, MouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
-  Banknote,
-  BriefcaseBusiness,
   Check,
   Clock3,
   Coffee,
@@ -15,12 +13,9 @@ import {
   HeartPulse,
   History,
   Landmark,
-  Languages,
   LoaderCircle,
   MapPin,
   MessageSquareText,
-  SendHorizontal,
-  Shirt,
   ShoppingBag,
   Sparkles,
   TrainFront,
@@ -34,6 +29,9 @@ import type {
 } from "@/lib/location/contracts";
 import type { ProviderMode } from "@/lib/providers/provider-mode";
 
+import { NpcHistory } from "./npc-history";
+import { NpcProfile } from "./npc-profile";
+import { useNpcGeneration } from "./use-npc-generation";
 import { useLocationResolution } from "./use-location-resolution";
 
 const GoogleMap = dynamic(() => import("./google-map"), {
@@ -46,8 +44,6 @@ const GoogleMap = dynamic(() => import("./google-map"), {
     </div>
   ),
 });
-
-type ChatMessage = { id: number; role: "npc" | "user"; text: string };
 
 export type ExplorerResumeRequest = {
   id: string;
@@ -75,31 +71,6 @@ const GREATER_LONDON_BOUNDS = {
   east: 0.334,
   west: -0.51,
 };
-
-const MOCK_NPCS = [
-  {
-    initials: "AO",
-    name: "Amara Okafor",
-    age: 31,
-    occupation: "Museum programme coordinator",
-    income: "GBP 38k-44k",
-    languages: "English, conversational Igbo",
-    clothing: "Olive field jacket, navy knit, worn leather tote",
-    introduction:
-      "I have ten minutes before the next school group arrives. What brings you this side of Clerkenwell?",
-  },
-  {
-    initials: "TH",
-    name: "Theo Harris",
-    age: 46,
-    occupation: "Independent bicycle mechanic",
-    income: "GBP 32k-39k",
-    languages: "English",
-    clothing: "Charcoal overshirt, work trousers, weathered trainers",
-    introduction:
-      "The workshop is just closing, but I can point you toward the quieter route east if that helps.",
-  },
-] as const;
 
 const PLACE_CATEGORY_ICONS = {
   food: Coffee,
@@ -159,11 +130,13 @@ export function ExplorerShell({
   googleMapsBrowserKey,
   authentication,
   locationFetch,
+  npcFetch,
 }: {
   providerMode: ProviderMode;
   googleMapsBrowserKey?: string;
   authentication?: ExplorerAuthentication;
   locationFetch?: typeof fetch;
+  npcFetch?: typeof fetch;
 }) {
   const [latitude, setLatitude] = useState(
     INITIAL_COORDINATES.latitude.toString(),
@@ -173,19 +146,14 @@ export function ExplorerShell({
   );
   const [coordinates, setCoordinates] = useState(INITIAL_COORDINATES);
   const [coordinateError, setCoordinateError] = useState<string | null>(null);
-  const [generationState, setGenerationState] = useState<
-    "idle" | "generating" | "ready"
-  >("idle");
-  const [npcIndex, setNpcIndex] = useState(0);
-  const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [history, setHistory] = useState<number[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const lastResumeRequestRef = useRef<string | null>(null);
   const location = useLocationResolution(locationFetch);
   const resolveLocation = location.resolve;
+  const npcGeneration = useNpcGeneration(npcFetch);
+  const generateProfile = npcGeneration.generate;
+  const resetProfileForLocation = npcGeneration.resetForLocation;
 
-  const npc = MOCK_NPCS[npcIndex % MOCK_NPCS.length];
   const mapStyle = useMemo(() => pinPosition(coordinates), [coordinates]);
   const resolvedLocation = location.result;
   const areaName = getAreaName(resolvedLocation, location.status);
@@ -202,11 +170,10 @@ export function ExplorerShell({
     setLongitude(request.coordinates.longitude.toString());
     setCoordinates(request.coordinates);
     setCoordinateError(null);
-    setGenerationState("generating");
-    setMessages([]);
-    finishGeneration(npcIndex % MOCK_NPCS.length);
+    void resolveLocation(request.coordinates);
+    void generateProfile(request.coordinates);
     authentication.clearResumeRequest();
-  }, [authentication, npcIndex]);
+  }, [authentication, generateProfile, resolveLocation]);
 
   const selectCoordinates = useCallback(
     async (nextCoordinates: Coordinates) => {
@@ -214,11 +181,10 @@ export function ExplorerShell({
       setLongitude(nextCoordinates.longitude.toFixed(6));
       setCoordinates(nextCoordinates);
       setCoordinateError(null);
-      setGenerationState("idle");
-      setMessages([]);
+      resetProfileForLocation();
       await resolveLocation(nextCoordinates);
     },
-    [resolveLocation],
+    [resetProfileForLocation, resolveLocation],
   );
 
   function handleLocate(event: FormEvent<HTMLFormElement>) {
@@ -270,20 +236,6 @@ export function ExplorerShell({
     });
   }
 
-  function finishGeneration(index: number) {
-    window.setTimeout(() => {
-      setGenerationState("ready");
-      setHistory((current) => [...current, index]);
-      setMessages([
-        {
-          id: index * 100 + 1,
-          role: "npc",
-          text: MOCK_NPCS[index].introduction,
-        },
-      ]);
-    }, 700);
-  }
-
   function generateNpc() {
     if (!hasPrivateAccess) {
       if (authentication?.status === "signed_out") {
@@ -292,9 +244,7 @@ export function ExplorerShell({
       return;
     }
 
-    setGenerationState("generating");
-    setMessages([]);
-    finishGeneration(npcIndex % MOCK_NPCS.length);
+    void generateProfile(coordinates);
   }
 
   function generateAnother() {
@@ -305,15 +255,10 @@ export function ExplorerShell({
       return;
     }
 
-    const nextIndex = (npcIndex + 1) % MOCK_NPCS.length;
-    setNpcIndex(nextIndex);
-    setGenerationState("generating");
-    setMessages([]);
-    finishGeneration(nextIndex);
+    void generateProfile(coordinates);
   }
 
-  function sendMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function restoreEncounter(npcId: string) {
     if (!hasPrivateAccess) {
       if (authentication?.status === "signed_out") {
         authentication.requestAccountSignIn();
@@ -321,43 +266,12 @@ export function ExplorerShell({
       return;
     }
 
-    const text = draft.trim();
-    if (!text) return;
-
-    setMessages((current) => [
-      ...current,
-      { id: current.length + 1, role: "user", text },
-      {
-        id: current.length + 2,
-        role: "npc",
-        text: "Fair question. Around here, the answer changes from one street to the next. What exactly are you looking for?",
-      },
-    ]);
-    setDraft("");
+    const reopened = await npcGeneration.reopen(npcId);
+    if (reopened) setHistoryOpen(false);
   }
 
-  function restoreEncounter(index: number) {
-    if (!hasPrivateAccess) {
-      if (authentication?.status === "signed_out") {
-        authentication.requestAccountSignIn();
-      }
-      return;
-    }
-
-    setNpcIndex(index);
-    setGenerationState("ready");
-    setMessages([
-      {
-        id: index * 100 + 1,
-        role: "npc",
-        text: MOCK_NPCS[index].introduction,
-      },
-    ]);
-    setHistoryOpen(false);
-  }
-
-  const isGenerating = generationState === "generating";
-  const isReady = generationState === "ready";
+  const isGenerating = npcGeneration.state === "generating";
+  const isReady = npcGeneration.npc !== null;
   const isAuthenticationPending =
     authentication?.status === "loading" ||
     authentication?.status === "synchronizing";
@@ -405,7 +319,13 @@ export function ExplorerShell({
             aria-expanded={historyOpen}
             onClick={() => {
               if (hasPrivateAccess) {
-                setHistoryOpen((current) => !current);
+                setHistoryOpen((current) => {
+                  const next = !current;
+                  if (next && npcGeneration.historyState === "idle") {
+                    void npcGeneration.loadHistory();
+                  }
+                  return next;
+                });
               } else if (authentication?.status === "signed_out") {
                 authentication.requestAccountSignIn();
               }
@@ -419,31 +339,14 @@ export function ExplorerShell({
       </header>
 
       {historyOpen ? (
-        <div className="history-popover" aria-label="NPC history">
-          <div className="history-popover-heading">
-            <span>Encounter history</span>
-            <span>{history.length}</span>
-          </div>
-          {history.length ? (
-            <div className="history-list">
-              {history.map((index, position) => (
-                <button
-                  type="button"
-                  onClick={() => restoreEncounter(index)}
-                  key={`${index}-${position}`}
-                >
-                  <span>{MOCK_NPCS[index].initials}</span>
-                  <span>
-                    <strong>{MOCK_NPCS[index].name}</strong>
-                    <small>{MOCK_NPCS[index].occupation}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="history-empty">No saved encounters yet.</p>
-          )}
-        </div>
+        <NpcHistory
+          items={npcGeneration.history}
+          state={npcGeneration.historyState}
+          error={npcGeneration.historyError}
+          hasMore={npcGeneration.nextCursor !== null}
+          onSelect={(npcId) => void restoreEncounter(npcId)}
+          onLoadMore={() => void npcGeneration.loadHistory({ append: true })}
+        />
       ) : null}
 
       <main className="workbench">
@@ -676,8 +579,8 @@ export function ExplorerShell({
                 </h3>
                 <p>
                   {isGenerating
-                    ? "Profile and portrait are being prepared together."
-                    : "Generate a character for the selected coordinate."}
+                    ? `Sampling local distributions / ${npcGeneration.stage}.`
+                    : "Generate one fictional character from the selected coordinate's local distributions."}
                 </p>
               </div>
               <button
@@ -720,87 +623,31 @@ export function ExplorerShell({
                   {authentication.error}
                 </p>
               ) : null}
+              {npcGeneration.error ? (
+                <p className="form-error auth-inline-status" role="alert">
+                  {npcGeneration.error}
+                </p>
+              ) : null}
             </div>
-          ) : (
-            <div className="npc-profile">
-              <div className="npc-identity">
-                <div
-                  className="portrait-mock"
-                  aria-label={`Mock portrait for ${npc.name}`}
-                >
-                  <span>{npc.initials}</span>
-                </div>
-                <div>
-                  <span className="profile-state">Available nearby</span>
-                  <h3>{npc.name}</h3>
-                  <p>{npc.occupation}</p>
-                </div>
-              </div>
+          ) : npcGeneration.npc ? (
+            <NpcProfile
+              npc={npcGeneration.npc}
+              isGenerating={isGenerating}
+              generationStage={npcGeneration.stage}
+              generationError={npcGeneration.error}
+              onGenerateAnother={generateAnother}
+            />
+          ) : null}
 
-              <div className="profile-facts">
-                <div>
-                  <Clock3 size={15} />
-                  <span>{npc.age} years old</span>
-                </div>
-                <div>
-                  <BriefcaseBusiness size={15} />
-                  <span>{npc.occupation}</span>
-                </div>
-                <div>
-                  <Banknote size={15} />
-                  <span>{npc.income}</span>
-                </div>
-                <div>
-                  <Languages size={15} />
-                  <span>{npc.languages}</span>
-                </div>
-                <div>
-                  <Shirt size={15} />
-                  <span>{npc.clothing}</span>
-                </div>
-              </div>
-
-              <div className="chat-log" aria-live="polite">
-                {messages.map((message) => (
-                  <p
-                    className={`chat-message ${message.role}`}
-                    key={message.id}
-                  >
-                    <span>{message.role === "npc" ? npc.name : "You"}</span>
-                    {message.text}
-                  </p>
-                ))}
-              </div>
-
-              <form className="chat-form" onSubmit={sendMessage}>
-                <label className="sr-only" htmlFor="chat-message">
-                  Message {npc.name}
-                </label>
-                <input
-                  id="chat-message"
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Say something..."
-                />
-                <button
-                  type="submit"
-                  aria-label="Send message"
-                  title="Send message"
-                >
-                  <SendHorizontal size={17} />
-                </button>
-              </form>
-
-              <button
-                className="secondary-button another-button"
-                type="button"
-                onClick={generateAnother}
-              >
-                <Sparkles size={16} />
-                Generate another
-              </button>
+          {isReady ? (
+            <div className="dialogue-pending" aria-label="Dialogue status">
+              <MessageSquareText size={15} />
+              <span>
+                <strong>Dialogue connects in the next loop</strong>
+                <small>This profile is ready for the AI agent endpoint.</small>
+              </span>
             </div>
-          )}
+          ) : null}
 
           <span className="provider-indicator">
             {providerMode === "mock" ? "Mock providers" : "Live providers"}
