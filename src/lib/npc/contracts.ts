@@ -16,13 +16,24 @@ const AGE_BAND_RANGES = {
   "65-plus": [65, 90],
 } as const;
 
-const IdentitySchema = z
+const LegacyIdentitySchema = z
   .object({
     fictionalName: z.string().trim().min(2).max(100),
     age: z.number().int().min(18).max(90),
     ageBand: AgeBandSchema,
     pronouns: z.string().trim().min(2).max(40),
     culturalBackground: z.string().trim().min(2).max(160),
+  })
+  .strict();
+
+const StatisticalIdentitySchema = z
+  .object({
+    fictionalName: z.string().trim().min(2).max(100),
+    age: z.number().int().min(18).max(90),
+    ageBand: AgeBandSchema,
+    pronouns: z.string().trim().min(2).max(40),
+    statisticalSex: z.string().trim().min(2).max(80),
+    ethnicGroup: z.string().trim().min(2).max(120),
   })
   .strict();
 
@@ -33,7 +44,7 @@ const HouseholdSchema = z
   })
   .strict();
 
-const WorkSchema = z
+const LegacyWorkSchema = z
   .object({
     economicActivity: z.string().trim().min(2).max(100),
     occupationCode: z.string().trim().min(2).max(40),
@@ -42,6 +53,56 @@ const WorkSchema = z
     annualIncomeBand: z.string().trim().min(2).max(80),
   })
   .strict();
+
+const WorkPatternSchema = z.enum(["full_time", "part_time", "variable"]);
+const EmployeeWorkSchema = z
+  .object({
+    branch: z.literal("employee"),
+    economicActivity: z.string().trim().min(2).max(100),
+    occupationCode: z.string().trim().min(2).max(40),
+    occupationTitle: z.string().trim().min(2).max(120),
+    employerType: z.string().trim().min(2).max(100),
+    workPattern: WorkPatternSchema,
+    annualIncomeBand: z.string().trim().min(2).max(80),
+  })
+  .strict();
+
+const SelfEmployedWorkSchema = z
+  .object({
+    branch: z.literal("self_employed"),
+    economicActivity: z.string().trim().min(2).max(100),
+    occupationCode: z.string().trim().min(2).max(40),
+    occupationTitle: z.string().trim().min(2).max(120),
+    employerType: z.literal("self_employed"),
+    workPattern: WorkPatternSchema,
+    annualIncomeBand: z.string().trim().min(2).max(80).nullable(),
+  })
+  .strict();
+
+const NonWorkingFields = {
+  economicActivity: z.string().trim().min(2).max(100),
+  occupationCode: z.null(),
+  occupationTitle: z.null(),
+  employerType: z.null(),
+  workPattern: z.null(),
+  annualIncomeBand: z.null(),
+} as const;
+
+const NonWorkingWorkSchema = z.union([
+  z.object({ branch: z.literal("unemployed"), ...NonWorkingFields }).strict(),
+  z.object({ branch: z.literal("student"), ...NonWorkingFields }).strict(),
+  z.object({ branch: z.literal("retired"), ...NonWorkingFields }).strict(),
+  z.object({ branch: z.literal("carer"), ...NonWorkingFields }).strict(),
+  z
+    .object({ branch: z.literal("other_inactive"), ...NonWorkingFields })
+    .strict(),
+]);
+
+const CurrentWorkSchema = z.union([
+  EmployeeWorkSchema,
+  SelfEmployedWorkSchema,
+  NonWorkingWorkSchema,
+]);
 
 const DailyLifeSchema = z
   .object({
@@ -69,32 +130,55 @@ const CharacterSchema = z
   })
   .strict();
 
-export const CanonicalNpcProfileSchema = z
+function assertAgeMatchesBand(
+  profile: { identity: { age: number; ageBand: z.infer<typeof AgeBandSchema> } },
+  context: z.RefinementCtx,
+) {
+  const [minimumAge, maximumAge] = AGE_BAND_RANGES[profile.identity.ageBand];
+  if (
+    profile.identity.age < minimumAge ||
+    profile.identity.age > maximumAge
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["identity", "ageBand"],
+      message: "Age does not match the selected age band.",
+    });
+  }
+}
+
+const LegacyCanonicalNpcProfileSchema = z
   .object({
     schemaVersion: z.literal(1),
-    identity: IdentitySchema,
+    identity: LegacyIdentitySchema,
     household: HouseholdSchema,
-    work: WorkSchema,
+    work: LegacyWorkSchema,
     dailyLife: DailyLifeSchema,
     appearance: AppearanceSchema,
     character: CharacterSchema,
   })
   .strict()
-  .superRefine((profile, context) => {
-    const [minimumAge, maximumAge] = AGE_BAND_RANGES[profile.identity.ageBand];
-    if (
-      profile.identity.age < minimumAge ||
-      profile.identity.age > maximumAge
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["identity", "ageBand"],
-        message: "Age does not match the selected age band.",
-      });
-    }
-  });
+  .superRefine(assertAgeMatchesBand);
 
-export const NpcVersionSetSchema = z
+export const CanonicalNpcProfileV2Schema = z
+  .object({
+    schemaVersion: z.literal(2),
+    identity: StatisticalIdentitySchema,
+    household: HouseholdSchema,
+    work: CurrentWorkSchema,
+    dailyLife: DailyLifeSchema,
+    appearance: AppearanceSchema,
+    character: CharacterSchema,
+  })
+  .strict()
+  .superRefine(assertAgeMatchesBand);
+
+export const CanonicalNpcProfileSchema = z.union([
+  LegacyCanonicalNpcProfileSchema,
+  CanonicalNpcProfileV2Schema,
+]);
+
+const LegacyNpcVersionSetSchema = z
   .object({
     datasetVersionIds: z.array(z.string().uuid()).min(1).max(16),
     probabilityEngineVersion: z.string().trim().min(1).max(80),
@@ -103,6 +187,61 @@ export const NpcVersionSetSchema = z
     imageModel: z.string().trim().min(1).max(120),
   })
   .strict();
+
+export const NpcV2VersionSetSchema = z
+  .object({
+    datasetVersionIds: z.array(z.string().uuid()).min(1).max(16),
+    probabilityEngineVersion: z.string().trim().min(1).max(80),
+    templateVersion: z.string().trim().min(1).max(80),
+    textModel: z.string().trim().min(1).max(120).nullable(),
+    imageModel: z.string().trim().min(1).max(120).nullable(),
+  })
+  .strict();
+
+export const NpcVersionSetSchema = z.union([
+  LegacyNpcVersionSetSchema,
+  NpcV2VersionSetSchema,
+]);
+
+export const NpcFieldProvenanceSchema = z
+  .object({
+    kind: z.enum(["statistical", "rule", "template"]),
+    datasetVersionId: z.string().uuid().nullable(),
+    metric: z.string().trim().min(1).max(120).nullable(),
+    geographyLevel: z
+      .enum(["lsoa", "ward", "borough", "london"])
+      .nullable(),
+    geographyCode: z.string().trim().min(1).max(40).nullable(),
+    sourceRelease: z.string().trim().min(1).max(160).nullable(),
+    transformVersion: z.string().trim().min(1).max(80),
+  })
+  .strict()
+  .superRefine((provenance, context) => {
+    if (provenance.kind === "statistical") {
+      if (!provenance.datasetVersionId || !provenance.metric) {
+        context.addIssue({
+          code: "custom",
+          path: ["kind"],
+          message:
+            "Statistical provenance requires a dataset version and metric.",
+        });
+      }
+    }
+  });
+
+export const NpcFieldProvenanceMapSchema = z
+  .record(
+    z.string().regex(/^\/[A-Za-z0-9_/-]+$/),
+    NpcFieldProvenanceSchema,
+  )
+  .superRefine((map, context) => {
+    if (Object.keys(map).length === 0) {
+      context.addIssue({
+        code: "custom",
+        message: "Field provenance cannot be empty.",
+      });
+    }
+  });
 
 export const NpcCurrentStateSchema = z
   .object({
@@ -119,3 +258,7 @@ export const NpcCurrentStateSchema = z
 export type CanonicalNpcProfile = z.infer<typeof CanonicalNpcProfileSchema>;
 export type NpcVersionSet = z.infer<typeof NpcVersionSetSchema>;
 export type NpcCurrentState = z.infer<typeof NpcCurrentStateSchema>;
+export type NpcFieldProvenance = z.infer<typeof NpcFieldProvenanceSchema>;
+export type NpcFieldProvenanceMap = z.infer<
+  typeof NpcFieldProvenanceMapSchema
+>;

@@ -21,6 +21,7 @@ import type { NpcMemory } from "@/lib/agent/contracts";
 import type { GenerationJob } from "@/lib/generation/contracts";
 import type {
   CanonicalNpcProfile,
+  NpcFieldProvenanceMap,
   NpcCurrentState,
   NpcVersionSet,
 } from "@/lib/npc/contracts";
@@ -55,6 +56,11 @@ export const generationStatusEnum = pgEnum("generation_status", [
   "cancelled",
 ]);
 
+export const generationModeEnum = pgEnum("generation_mode", [
+  "profile_only",
+  "full",
+]);
+
 export const generationStageEnum = pgEnum("generation_stage", [
   "queued",
   "location",
@@ -84,6 +90,7 @@ export const datasetVersions = pgTable(
     source: text("source").notNull(),
     releaseLabel: text("release_label").notNull(),
     transformVersion: text("transform_version").notNull(),
+    compatibilitySetKey: text("compatibility_set_key"),
     state: datasetStateEnum("state").default("pending").notNull(),
     sourcePublishedAt: timestamp("source_published_at", {
       withTimezone: true,
@@ -244,6 +251,8 @@ export const generationJobs = pgTable(
       .references(() => locations.id, { onDelete: "restrict" }),
     idempotencyKey: text("idempotency_key").notNull(),
     seed: text("seed").notNull(),
+    mode: generationModeEnum("mode").default("profile_only").notNull(),
+    versionSet: jsonb("version_set").$type<NpcVersionSet | null>(),
     status: generationStatusEnum("status").default("queued").notNull(),
     stage: generationStageEnum("stage").default("queued").notNull(),
     retryCount: integer("retry_count").default(0).notNull(),
@@ -285,7 +294,7 @@ export const generationJobs = pgTable(
     ),
     check(
       "generation_jobs_atomic_completion",
-      sql`${table.status} <> 'completed' or (${table.stage} = 'completed' and ${table.resultNpcId} is not null and ${table.portraitUrl} is not null and ${table.failure} is null)`,
+      sql`${table.status} <> 'completed' or (${table.stage} = 'completed' and ${table.resultNpcId} is not null and (${table.mode} = 'profile_only' or ${table.portraitUrl} is not null) and ${table.failure} is null)`,
     ),
     check(
       "generation_jobs_no_partial_visibility",
@@ -313,8 +322,22 @@ export const npcs = pgTable(
       .notNull(),
     currentState: jsonb("current_state").$type<NpcCurrentState>().notNull(),
     versionSet: jsonb("version_set").$type<NpcVersionSet>().notNull(),
+    fieldProvenance: jsonb("field_provenance")
+      .$type<NpcFieldProvenanceMap>()
+      .default({
+        "/legacy": {
+          kind: "template",
+          datasetVersionId: null,
+          metric: null,
+          geographyLevel: null,
+          geographyCode: null,
+          sourceRelease: "legacy-v1",
+          transformVersion: "legacy-v1",
+        },
+      })
+      .notNull(),
     narrative: text("narrative").notNull(),
-    portraitUrl: text("portrait_url").notNull(),
+    portraitUrl: text("portrait_url"),
     visibleAt: timestamp("visible_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -326,7 +349,10 @@ export const npcs = pgTable(
   (table) => [
     uniqueIndex("npcs_generation_job_unique").on(table.generationJobId),
     index("npcs_owner_created_idx").on(table.ownerId, table.createdAt),
-    check("npcs_portrait_url_nonempty", sql`length(${table.portraitUrl}) > 0`),
+    check(
+      "npcs_portrait_url_nonempty",
+      sql`${table.portraitUrl} is null or length(${table.portraitUrl}) > 0`,
+    ),
   ],
 );
 

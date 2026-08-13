@@ -10,9 +10,20 @@ describe("GenerationJobSchema", () => {
     );
   });
 
-  it("rejects completed jobs without a portrait URL", () => {
+  it("accepts completed profile-only jobs without a portrait URL", () => {
     const result = GenerationJobSchema.safeParse({
       ...validCompletedGenerationJob,
+      mode: "profile_only",
+      portraitUrl: null,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects completed full jobs without a portrait URL", () => {
+    const result = GenerationJobSchema.safeParse({
+      ...validCompletedGenerationJob,
+      mode: "full",
       portraitUrl: null,
     });
 

@@ -6,8 +6,10 @@ import { z } from "zod";
 import { ClerkUserIdSchema, EntityIdSchema } from "@/lib/domain/primitives";
 import {
   GenerationIdempotencyKeySchema,
+  GenerationModeSchema,
   GenerationSeedSchema,
 } from "@/lib/generation/contracts";
+import { NpcVersionSetSchema } from "@/lib/npc/contracts";
 
 import type { Database } from "../client";
 import { generationJobs } from "../schema";
@@ -18,6 +20,8 @@ export const CreateGenerationJobInputSchema = z
     locationId: EntityIdSchema,
     idempotencyKey: GenerationIdempotencyKeySchema,
     seed: GenerationSeedSchema,
+    mode: GenerationModeSchema.default("profile_only"),
+    versionSet: NpcVersionSetSchema.nullable().default(null),
     estimatedCostUsd: z.number().finite().min(0).max(100).default(0),
   })
   .strict();

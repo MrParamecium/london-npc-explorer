@@ -157,6 +157,7 @@ export const validCompletedGenerationJob = {
   locationId: ids.location,
   idempotencyKey: "generate-51.5202--0.0979-seed-0042",
   seed: "0042-7f3c1d89a2e6",
+  mode: "profile_only",
   status: "completed",
   stage: "completed",
   retryCount: 0,

@@ -24,6 +24,8 @@ export const GenerationStageSchema = z.enum([
   "completed",
 ]);
 
+export const GenerationModeSchema = z.enum(["profile_only", "full"]);
+
 export const GenerationIdempotencyKeySchema = z
   .string()
   .regex(/^[A-Za-z0-9._:-]{8,128}$/);
@@ -37,6 +39,10 @@ const GenerationFailureSchema = z
       "invalid_output",
       "portrait_failed",
       "budget_exceeded",
+      "statistics_unavailable",
+      "invalid_distribution",
+      "compatibility_exhausted",
+      "authentication_required",
       "persistence_failed",
       "unknown",
     ]),
@@ -52,6 +58,7 @@ export const GenerationJobSchema = z
     locationId: EntityIdSchema,
     idempotencyKey: GenerationIdempotencyKeySchema,
     seed: GenerationSeedSchema,
+    mode: GenerationModeSchema,
     status: GenerationStatusSchema,
     stage: GenerationStageSchema,
     retryCount: z.number().int().min(0).max(1),
@@ -72,11 +79,18 @@ export const GenerationJobSchema = z
           message: "A completed job must be in the completed stage.",
         });
       }
-      if (!job.visibleNpcId || !job.portraitUrl) {
+      if (!job.visibleNpcId) {
         context.addIssue({
           code: "custom",
           path: ["visibleNpcId"],
-          message: "A completed job requires an NPC and portrait URL.",
+          message: "A completed job requires an NPC.",
+        });
+      }
+      if (job.mode === "full" && !job.portraitUrl) {
+        context.addIssue({
+          code: "custom",
+          path: ["portraitUrl"],
+          message: "A completed full job requires a portrait URL.",
         });
       }
       if (job.failure) {
@@ -117,3 +131,4 @@ export const GenerationJobSchema = z
 export type GenerationJob = z.infer<typeof GenerationJobSchema>;
 export type GenerationStatus = z.infer<typeof GenerationStatusSchema>;
 export type GenerationStage = z.infer<typeof GenerationStageSchema>;
+export type GenerationMode = z.infer<typeof GenerationModeSchema>;

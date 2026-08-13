@@ -77,6 +77,18 @@ describe("database schema", () => {
     expect(columns).not.toHaveProperty("photoUrl");
   });
 
+  it("stores profile-only generation mode, locked versions, and provenance", () => {
+    const jobColumns = getTableColumns(generationJobs);
+    const npcColumns = getTableColumns(npcs);
+    const datasetColumns = getTableColumns(datasetVersions);
+
+    expect(jobColumns).toHaveProperty("mode");
+    expect(jobColumns).toHaveProperty("versionSet");
+    expect(npcColumns).toHaveProperty("fieldProvenance");
+    expect(datasetColumns).toHaveProperty("compatibilitySetKey");
+    expect(npcColumns.portraitUrl.notNull).toBe(false);
+  });
+
   it("keeps PostGIS and WGS84 in the initial migration", () => {
     const migration = readFileSync(
       resolve(process.cwd(), "drizzle/0000_initial_domain.sql"),
