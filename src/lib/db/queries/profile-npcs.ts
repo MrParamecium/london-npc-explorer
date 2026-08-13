@@ -16,6 +16,24 @@ type ProfileCompletionRow = {
   npc_id: string;
 };
 
+export type ProfileNpcRecord = typeof npcs.$inferSelect;
+
+export function serializeProfileNpc(npc: ProfileNpcRecord) {
+  return {
+    npcId: npc.id,
+    locationId: npc.locationId,
+    seed: npc.seed,
+    canonicalProfile: npc.canonicalProfile,
+    currentState: npc.currentState,
+    versionSet: npc.versionSet,
+    fieldProvenance: npc.fieldProvenance,
+    narrative: npc.narrative,
+    portraitUrl: npc.portraitUrl,
+    visibleAt: npc.visibleAt.toISOString(),
+    createdAt: npc.createdAt.toISOString(),
+  };
+}
+
 export class ProfileNpcCompletionConflict extends Error {
   constructor() {
     super(
@@ -43,6 +61,7 @@ export async function completeProfileNpcAtomically(
         AND owner_id = ${profileInput.ownerId}
         AND location_id = ${profileInput.locationId}
         AND seed = ${profileInput.seed}
+        AND version_set = ${versionSet}::jsonb
         AND mode = 'profile_only'
         AND status = 'running'
         AND result_npc_id IS NULL
@@ -156,6 +175,6 @@ export async function listProfileNpcsForOwner(
   const page = rows.slice(0, limit).map((row) => row.npc);
   return {
     items: page,
-    nextCursor: hasMore ? page.at(-1)?.id ?? null : null,
+    nextCursor: hasMore ? (page.at(-1)?.id ?? null) : null,
   };
 }

@@ -131,14 +131,13 @@ const CharacterSchema = z
   .strict();
 
 function assertAgeMatchesBand(
-  profile: { identity: { age: number; ageBand: z.infer<typeof AgeBandSchema> } },
+  profile: {
+    identity: { age: number; ageBand: z.infer<typeof AgeBandSchema> };
+  },
   context: z.RefinementCtx,
 ) {
   const [minimumAge, maximumAge] = AGE_BAND_RANGES[profile.identity.ageBand];
-  if (
-    profile.identity.age < minimumAge ||
-    profile.identity.age > maximumAge
-  ) {
+  if (profile.identity.age < minimumAge || profile.identity.age > maximumAge) {
     context.addIssue({
       code: "custom",
       path: ["identity", "ageBand"],
@@ -198,6 +197,8 @@ export const NpcV2VersionSetSchema = z
   })
   .strict();
 
+export type NpcV2VersionSet = z.infer<typeof NpcV2VersionSetSchema>;
+
 export const NpcVersionSetSchema = z.union([
   LegacyNpcVersionSetSchema,
   NpcV2VersionSetSchema,
@@ -208,9 +209,7 @@ export const NpcFieldProvenanceSchema = z
     kind: z.enum(["statistical", "rule", "template"]),
     datasetVersionId: z.string().uuid().nullable(),
     metric: z.string().trim().min(1).max(120).nullable(),
-    geographyLevel: z
-      .enum(["lsoa", "ward", "borough", "london"])
-      .nullable(),
+    geographyLevel: z.enum(["lsoa", "ward", "borough", "london"]).nullable(),
     geographyCode: z.string().trim().min(1).max(40).nullable(),
     sourceRelease: z.string().trim().min(1).max(160).nullable(),
     transformVersion: z.string().trim().min(1).max(80),
@@ -230,10 +229,7 @@ export const NpcFieldProvenanceSchema = z
   });
 
 export const NpcFieldProvenanceMapSchema = z
-  .record(
-    z.string().regex(/^\/[A-Za-z0-9_/-]+$/),
-    NpcFieldProvenanceSchema,
-  )
+  .record(z.string().regex(/^\/[A-Za-z0-9_/-]+$/), NpcFieldProvenanceSchema)
   .superRefine((map, context) => {
     if (Object.keys(map).length === 0) {
       context.addIssue({
@@ -259,6 +255,4 @@ export type CanonicalNpcProfile = z.infer<typeof CanonicalNpcProfileSchema>;
 export type NpcVersionSet = z.infer<typeof NpcVersionSetSchema>;
 export type NpcCurrentState = z.infer<typeof NpcCurrentStateSchema>;
 export type NpcFieldProvenance = z.infer<typeof NpcFieldProvenanceSchema>;
-export type NpcFieldProvenanceMap = z.infer<
-  typeof NpcFieldProvenanceMapSchema
->;
+export type NpcFieldProvenanceMap = z.infer<typeof NpcFieldProvenanceMapSchema>;
