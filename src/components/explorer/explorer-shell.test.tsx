@@ -87,6 +87,25 @@ const fixtureNpc = {
   createdAt: "2026-08-13T00:00:00.000Z",
 } as const;
 
+const dialogueResponse = {
+  reply: {
+    speech: "Only a minute. The library opens shortly.",
+    action: "Rowan folds the local notice back into their canvas bag.",
+    emotion: "quietly_amused",
+    memory_update: null,
+  },
+  metadata: {
+    provider: "openrouter",
+    model: "openai/gpt-4.1-mini",
+    usage: {
+      promptTokens: 300,
+      completionTokens: 42,
+      totalTokens: 342,
+      costUsd: 0.0001,
+    },
+  },
+};
+
 function npcResponse(status = 200) {
   return jsonResponse(
     {
@@ -181,7 +200,16 @@ describe("ExplorerShell", () => {
           resolveNpcResponse = resolve;
         }),
     );
-    render(<ExplorerShell providerMode="mock" npcFetch={npcFetch} />);
+    const dialogueFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse(dialogueResponse));
+    render(
+      <ExplorerShell
+        providerMode="mock"
+        npcFetch={npcFetch}
+        dialogueFetch={dialogueFetch}
+      />,
+    );
 
     await user.click(screen.getByRole("button", { name: "Generate NPC" }));
     expect(
@@ -193,8 +221,26 @@ describe("ExplorerShell", () => {
       await screen.findByRole("heading", { name: "Rowan Ellis" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Fictional local sample")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Talk with Rowan" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Message Rowan Ellis")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Dialogue connects in the next loop"),
+    ).not.toBeInTheDocument();
     expect(npcFetch).toHaveBeenCalledWith(
       "/api/npcs/generate",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    await user.type(
+      screen.getByLabelText("Message Rowan Ellis"),
+      "Are you waiting long?",
+    );
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+
+    expect(dialogueFetch).toHaveBeenCalledWith(
+      `/api/chat/${fixtureNpc.npcId}`,
       expect.objectContaining({ method: "POST" }),
     );
   });

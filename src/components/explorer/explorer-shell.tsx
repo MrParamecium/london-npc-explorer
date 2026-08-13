@@ -29,6 +29,7 @@ import type {
 } from "@/lib/location/contracts";
 import type { ProviderMode } from "@/lib/providers/provider-mode";
 
+import { NpcDialogue } from "./npc-dialogue";
 import { NpcHistory } from "./npc-history";
 import { NpcProfile } from "./npc-profile";
 import { useNpcGeneration } from "./use-npc-generation";
@@ -131,12 +132,14 @@ export function ExplorerShell({
   authentication,
   locationFetch,
   npcFetch,
+  dialogueFetch,
 }: {
   providerMode: ProviderMode;
   googleMapsBrowserKey?: string;
   authentication?: ExplorerAuthentication;
   locationFetch?: typeof fetch;
   npcFetch?: typeof fetch;
+  dialogueFetch?: typeof fetch;
 }) {
   const [latitude, setLatitude] = useState(
     INITIAL_COORDINATES.latitude.toString(),
@@ -639,14 +642,15 @@ export function ExplorerShell({
             />
           ) : null}
 
-          {isReady ? (
-            <div className="dialogue-pending" aria-label="Dialogue status">
-              <MessageSquareText size={15} />
-              <span>
-                <strong>Dialogue connects in the next loop</strong>
-                <small>This profile is ready for the AI agent endpoint.</small>
-              </span>
-            </div>
+          {npcGeneration.npc ? (
+            <NpcDialogue
+              key={npcGeneration.npc.npcId}
+              npcId={npcGeneration.npc.npcId}
+              npcName={
+                npcGeneration.npc.canonicalProfile.identity.fictionalName
+              }
+              fetchImpl={dialogueFetch}
+            />
           ) : null}
 
           <span className="provider-indicator">
