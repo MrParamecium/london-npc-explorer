@@ -108,6 +108,33 @@ export const StatisticalMetricResolutionSchema = z
   })
   .strict();
 
+export const ActiveDatasetVersionSchema = z
+  .object({
+    id: z.string().uuid(),
+    source: z.string().trim().min(1).max(160),
+    releaseLabel: z.string().trim().min(1).max(160),
+    transformVersion: z.string().trim().min(1).max(80),
+    compatibilitySetKey: z.string().trim().min(1).max(160),
+    metricIds: z.array(MetricIdSchema).min(1),
+  })
+  .strict();
+
+export const ActiveStatisticalVersionSetSchema = z
+  .object({
+    compatibilitySetKey: z.string().trim().min(1).max(160),
+    datasetVersionIds: z.array(z.string().uuid()).min(1).max(16),
+    versions: z.array(ActiveDatasetVersionSchema).min(1).max(16),
+  })
+  .strict();
+
+export const ProbabilityBundleSchema = z
+  .object({
+    compatibilitySetKey: z.string().trim().min(1).max(160),
+    datasetVersionIds: z.array(z.string().uuid()).min(1).max(16),
+    metrics: z.record(MetricIdSchema, StatisticalMetricResolutionSchema),
+  })
+  .strict();
+
 export type WeightedCategory = z.infer<typeof WeightedCategorySchema>;
 export type StatisticalDistribution = z.infer<
   typeof StatisticalDistributionSchema
@@ -115,3 +142,8 @@ export type StatisticalDistribution = z.infer<
 export type StatisticalMetricResolution = z.infer<
   typeof StatisticalMetricResolutionSchema
 >;
+export type ActiveDatasetVersion = z.infer<typeof ActiveDatasetVersionSchema>;
+export type ActiveStatisticalVersionSet = z.infer<
+  typeof ActiveStatisticalVersionSetSchema
+>;
+export type ProbabilityBundle = z.infer<typeof ProbabilityBundleSchema>;
