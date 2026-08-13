@@ -16,6 +16,7 @@
     "db:check": "drizzle-kit check",
     "db:verify": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/verify-database.ts",
     "data:boundaries": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/data/import-london-boundaries.ts",
+    "data:statistics": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/data/import-london-statistics.ts",
     "google:verify": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/verify-google-maps.ts",
     "secrets:check": "! git grep -nE 'AIza[0-9A-Za-z_-]{20,}' -- . ':!pnpm-lock.yaml'",
     "format": "prettier --write .",
@@ -33,6 +34,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
+    "unzipper": "^0.12.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -45,6 +47,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/unzipper": "^0.10.11",
     "@vitejs/plugin-react": "^6.0.5",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",

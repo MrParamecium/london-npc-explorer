@@ -3,8 +3,10 @@ import { z } from "zod";
 export const MetricIdSchema = z.string().regex(/^[a-z][a-z0-9_]{2,80}$/);
 export const DistributionDenominatorSchema = z.enum([
   "adults_18_plus",
+  "residents_16_plus",
   "usual_residents",
   "person_weighted_adults",
+  "person_weighted_residents_16_plus",
   "households",
   "employees",
   "workers",

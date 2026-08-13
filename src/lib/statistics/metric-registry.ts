@@ -31,7 +31,7 @@ export const LONDON_NPC_METRIC_REGISTRY = {
   household_context: {
     id: "household_context",
     required: true,
-    denominator: "person_weighted_adults",
+    denominator: "person_weighted_residents_16_plus",
     preferredSource: "census-2021",
     allowedConditions: [],
     fallbackLevels: FALLBACK_LEVELS,
@@ -47,7 +47,7 @@ export const LONDON_NPC_METRIC_REGISTRY = {
   highest_qualification: {
     id: "highest_qualification",
     required: true,
-    denominator: "adults_18_plus",
+    denominator: "residents_16_plus",
     preferredSource: "census-2021",
     allowedConditions: ["adult_age_sex"],
     fallbackLevels: FALLBACK_LEVELS,
@@ -55,7 +55,7 @@ export const LONDON_NPC_METRIC_REGISTRY = {
   economic_activity: {
     id: "economic_activity",
     required: true,
-    denominator: "adults_18_plus",
+    denominator: "residents_16_plus",
     preferredSource: "census-2021",
     allowedConditions: ["adult_age_sex", "highest_qualification"],
     fallbackLevels: FALLBACK_LEVELS,
