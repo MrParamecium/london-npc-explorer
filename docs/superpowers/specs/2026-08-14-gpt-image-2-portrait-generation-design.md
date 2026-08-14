@@ -1,117 +1,104 @@
-# GPT Image 2 NPC Portrait Generation Design
+# GPT Image 2 NPC 画像生成设计规格
 
-Date: 2026-08-14
+日期：2026-08-14
 
-## Status
+## 当前状态
 
-Draft for user review.
+等待用户审核。
 
-## Goal
+## 这次要实现什么
 
-Generate one realistic fictional portrait from the locked statistical NPC
-profile, persist the portrait and NPC atomically, and reveal the profile and
-portrait together. The first version remains London-only.
+系统先根据伦敦坐标生成并锁定 NPC 人物资料，再根据这份资料生成一张真实感人物照片。人物资料和照片都成功保存以后，才一起展示给用户。
 
-The portrait must look like an ordinary person encountered at the selected
-location, not a polished model, celebrity, game character, or generic AI
-illustration.
+照片中的人应该像在所选地点真实遇到的普通人，而不是模特、明星、游戏角色，也不应该有明显的 AI 图片感。
 
-## Scope
+## 这次包含的内容
 
-This loop includes:
+- 通过 OpenRouter 调用 GPT Image 2；
+- 根据已经锁定的 NPC 资料，稳定地生成图片提示词；
+- 把生成的图片保存到 Vercel Blob；
+- 把 NPC 和图片作为一个完整结果保存；
+- 在人物详情和历史记录中展示真实图片；
+- 处理失败、图片清理、费用控制和测试；
+- 最后只做一次真实付费测试。
 
-- server-side GPT Image 2 generation through OpenRouter;
-- a deterministic portrait prompt built from the locked NPC profile;
-- public image persistence in Vercel Blob;
-- full-mode generation jobs and atomic NPC completion;
-- portrait rendering in the current profile and history UI;
-- failure handling, cleanup, cost controls, automated tests, and one paid smoke
-  test.
+## 这次不做的内容
 
-This loop excludes:
+- 街景、3D 和 360 度场景；
+- 编辑图片、参考图或者一次生成多张图让用户挑选；
+- 用户上传照片；
+- 后台任务队列、Webhook 和自动付费重试；
+- 给旧 NPC 补照片。所有旧测试 NPC 以及相关对话、记忆、消息和生成任务，已经在 2026-08-14 清空。
 
-- Street View, 3D, and 360-degree scenes;
-- image editing, reference images, or multiple portrait choices;
-- user-uploaded photos;
-- background queues, webhook workers, and automatic paid retries;
-- retroactive portraits for old NPCs. All existing test NPCs and their related
-  conversations, memories, messages, and jobs were deleted on 2026-08-14.
+## 已经确认的选择
 
-## Confirmed Product Decisions
+| 项目              | 第一版选择                           |
+| ----------------- | ------------------------------------ |
+| 图片服务入口      | OpenRouter 图片专用 API              |
+| 图片模型          | `openai/gpt-image-2`                 |
+| 图片质量          | `high`，高质量                       |
+| 图片比例          | `3:4`                                |
+| 图片背景          | `opaque`，不透明背景                 |
+| 每个 NPC 图片数量 | `1` 张                               |
+| 生成方式          | 一次请求内同步完成，最后统一展示     |
+| 图片存储          | 公开的 Vercel Blob 文件              |
+| 展示规则          | 人物资料和照片都保存成功后才一起出现 |
+| 重试规则          | 发出付费图片请求后，系统不自动重试   |
+| 旧数据规则        | 不兼容旧 NPC，因为旧测试数据已经清空 |
 
-| Decision       | V1 choice                                                   |
-| -------------- | ----------------------------------------------------------- |
-| Provider       | OpenRouter dedicated image API                              |
-| Model          | `openai/gpt-image-2`                                        |
-| Quality        | `high`                                                      |
-| Aspect ratio   | `3:4`                                                       |
-| Background     | `opaque`                                                    |
-| Images per NPC | `1`                                                         |
-| Orchestration  | One synchronous, atomic generation request                  |
-| Storage        | Public Vercel Blob object                                   |
-| Reveal policy  | Profile and portrait appear together only after persistence |
-| Retry policy   | No automatic retry after a paid image request is sent       |
-| Legacy policy  | No compatibility path; the old test NPC dataset is empty    |
+## 用户实际会看到什么
 
-## User Experience
+用户仍然只需要点击一次生成按钮。等待期间，照片区域保持固定的 3:4 占位尺寸，页面依次显示三句大致进度：
 
-The existing generation interaction remains one action. While the server works,
-the portrait area keeps its fixed 3:4 placeholder and the interface cycles
-through three coarse progress messages:
+1. `Sampling local profile`：正在生成当地人物资料
+2. `Generating portrait`：正在生成人物照片
+3. `Saving encounter`：正在保存这次相遇
 
-1. `Sampling local profile`
-2. `Generating portrait`
-3. `Saving encounter`
+这三句话只是告诉用户系统大概在做什么，不代表服务器会实时上报精确进度。
 
-These labels communicate expected phases; they are not precise server telemetry.
-The client receives no name, profile fields, or portrait URL before the full
-request succeeds.
+在全部成功之前，浏览器不会拿到人物名字、人物属性或者图片地址。成功后，人物资料和照片同时出现，历史记录里也使用同一张照片。
 
-On success, the current profile and its portrait appear together. New history
-items use the same persisted portrait as their thumbnail. The portrait uses the
-accessible alt text `Fictional portrait of {name}`.
+图片的无障碍说明文字使用：`Fictional portrait of {name}`，意思是“{name} 的虚构人物照片”。
 
-On failure, the placeholder becomes an error state with one explicit manual
-`Generate again` action. A manual retry creates a new idempotency key and is a
-new potentially billable generation attempt.
+如果生成失败，照片位置显示错误状态，并提供一次明确的 `Generate again` 按钮。用户手动点击重新生成后，会创建一次新的生成任务，也可能产生一次新的图片费用。
 
-## End-to-End Flow
+## 完整生成流程
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant UI as Explorer UI
-    participant API as NPC generation route
-    participant DB as Neon PostgreSQL
+    participant U as 用户
+    participant UI as 网页
+    participant API as NPC生成接口
+    participant DB as Neon数据库
     participant OR as OpenRouter
     participant Blob as Vercel Blob
 
-    U->>UI: Generate NPC
-    UI->>API: Coordinates + idempotency key
-    API->>API: Validate auth, coordinates, and configuration
-    API->>DB: Create or resume full-mode job
-    API->>DB: Resolve location and sample locked profile
-    API->>API: Build portrait prompt from locked profile
-    API->>OR: One GPT Image 2 high-quality request
-    OR-->>API: Base64 raster image
-    API->>API: Validate type, signature, and decoded size
-    API->>Blob: Upload immutable public portrait
-    Blob-->>API: Public URL
-    API->>DB: Atomically insert NPC and complete job with portrait URL
-    DB-->>API: Completed NPC
-    API-->>UI: Profile + portrait URL
-    UI-->>U: Reveal complete NPC
+    U->>UI: 点击生成NPC
+    UI->>API: 发送坐标和防重复编号
+    API->>API: 检查登录、坐标和服务配置
+    API->>DB: 创建或恢复完整生成任务
+    API->>DB: 确认地点并生成锁定的人物资料
+    API->>API: 根据人物资料组装图片提示词
+    API->>OR: 发出一次GPT Image 2高质量请求
+    OR-->>API: 返回Base64图片
+    API->>API: 检查图片类型、真实格式和大小
+    API->>Blob: 上传不可修改的公开图片
+    Blob-->>API: 返回公开图片地址
+    API->>DB: 同时保存NPC并完成生成任务
+    DB-->>API: 返回完整NPC
+    API-->>UI: 返回人物资料和图片地址
+    UI-->>U: 一次性展示完整NPC
 ```
 
-## Provider Contract
+## OpenRouter 调用规则
 
-The server calls:
+服务器调用下面的图片专用接口：
 
 ```text
 POST https://openrouter.ai/api/v1/images
 ```
 
-with server-only authentication and these fixed generation parameters:
+API Key 只放在服务器端。固定参数如下：
 
 ```json
 {
@@ -123,103 +110,88 @@ with server-only authentication and these fixed generation parameters:
 }
 ```
 
-The adapter accepts a successful response only when it contains exactly one
-non-empty `data[].b64_json` image. It decodes the image once and validates its
-magic signature rather than trusting response metadata. Accepted formats are
-PNG, JPEG, and WebP. The decoded payload limit is 20 MiB.
+只有响应中正好包含一张有效的 `data[].b64_json` 图片，才算成功。服务器解码图片后，会检查图片文件本身的开头标记，而不是完全相信接口写的图片类型。
 
-The provider call has a 110-second timeout. The Next.js route uses a 180-second
-maximum duration so validation, upload, and persistence have time to finish
-after the provider returns. Streaming is not needed because the UI must not
-reveal partial output.
+允许 PNG、JPEG 和 WebP，解码后的图片最大不能超过 20 MiB。
 
-## Portrait Prompt Policy
+OpenRouter 图片生成最多等待 110 秒。整个 Next.js 接口最多运行 180 秒，给图片检查、上传和数据库保存留下时间。第一版不使用流式返回，因为我们本来就不允许提前展示半成品。
 
-The prompt builder is deterministic for a locked profile. It may use:
+## 如何根据 NPC 资料写图片提示词
 
-- age and adult age band;
-- pronouns, statistical sex, and ethnic group as independent descriptive
-  inputs;
-- presentation, ordinary clothing, possessions, and `portraitDescriptor`;
-- current task, reason for location, mood, and energy;
-- occupation and income band only to ground plausible everyday wardrobe and
-  context;
-- broad neighborhood context without an exact private address.
+只允许使用已经锁定的人物资料，包括：
 
-It must not use narrative prose, dialogue history, memories, personality
-stereotypes, or inferred traits that are absent from the canonical profile.
-Ethnicity must not determine occupation, wealth, personality, speech, beauty,
-or behavior.
+- 年龄和成年人年龄段；
+- 代词、统计性别和族裔，这些信息彼此独立使用；
+- 外在呈现方式、日常服装、随身物品和 `portraitDescriptor`；
+- 当前在做什么、为什么在这里、心情和精力；
+- 职业和收入区间，但只能用来决定合理的日常衣着和环境；
+- 大致街区环境，但不能包含具体私人地址。
 
-Every prompt establishes that the subject is a fictional adult and requests:
+不能使用这些内容：
 
-- candid documentary photography;
-- natural skin texture, asymmetry, flyaway hair, fabric wear, and ordinary
-  posture;
-- plausible London light and weather for the current situation;
-- an uncrowded composition centered on one person;
-- no text, logo, watermark, frame, collage, glamour retouching, cinematic
-  color grade, excessive bokeh, fantasy styling, or named real person.
+- 人物故事文案；
+- 对话历史和记忆；
+- 人物资料里没有写明的性格推测；
+- 根据族裔推测职业、收入、性格、说话方式、外貌好坏或者行为。
 
-The prompt is not persisted in the browser response or logs.
+每次提示词都要明确：这是一个虚构的成年人。照片风格要求包括：
 
-## Persistence and Atomic Visibility
+- 像随手拍到的纪实照片；
+- 保留自然皮肤纹理、轻微不对称、碎发、衣物磨损和普通姿势；
+- 符合当时情况的伦敦自然光线和天气；
+- 画面主要只有一个人，不要拥挤；
+- 不要文字、品牌 Logo、水印、边框和拼贴；
+- 不要过度磨皮、时尚大片、夸张电影调色、过强背景虚化和奇幻造型；
+- 不模仿或点名任何真实人物。
 
-New jobs use `mode = full`. A completed full job requires both `result_npc_id`
-and `portrait_url`. The NPC row stores the same public portrait URL.
+完整提示词不会返回给浏览器，也不会写进普通日志。
 
-The portrait is uploaded under an immutable path shaped like:
+## 数据保存和统一展示
+
+以后新建的生成任务统一使用 `mode = full`，表示必须包含人物资料和图片。任务想要变成“已完成”，必须同时拥有 `result_npc_id` 和 `portrait_url`。NPC 数据本身也保存同一个图片地址。
+
+图片保存路径大致如下：
 
 ```text
 npc-portraits/{generationJobId}-{randomSuffix}.{ext}
 ```
 
-The public path contains no Clerk user ID, name, coordinates, or profile data.
-The response uses the URL returned by Vercel Blob. New objects receive a long
-cache lifetime because portraits are never overwritten in place.
+公开图片地址里不能出现 Clerk 用户 ID、人物名字、经纬度或者人物资料。图片不会覆盖更新，因此可以设置较长的缓存时间。
 
-The database completion operation is one transaction that inserts the NPC and
-marks the job completed. Until that transaction commits, history and detail
-queries cannot return the NPC.
+数据库使用一个完整事务，同时创建 NPC 并把生成任务标记为完成。在这个事务真正成功以前，人物历史和人物详情接口都不能查到这个 NPC。
 
-Idempotent repeats behave as follows:
+重复请求的处理规则：
 
-- a completed job returns the existing NPC and does not call the image provider;
-- an existing running request is not allowed to issue a second paid image call;
-- a failed job returns its stored failure; the user must explicitly start a new
-  attempt with a new key.
+- 如果任务已经完成，直接返回原来的 NPC，不重新生成图片；
+- 如果同一个任务还在生成，不能再发出第二次付费图片请求；
+- 如果任务已经失败，就返回保存下来的错误。用户必须主动开始一次新任务。
 
-## Failure and Cleanup Policy
+## 失败以后怎么处理
 
-Before the paid provider call, the server verifies that required OpenRouter and
-Blob configuration is present and that the profile is valid. Configuration or
-sampling failures therefore cost no image request.
+在调用付费图片接口之前，服务器先检查 OpenRouter、Vercel Blob 和人物资料是否可用。配置错误或者人物资料生成失败，不会产生图片调用费用。
 
-After the request is sent, the server never retries automatically. A timeout,
-rate limit, upstream 5xx response, policy rejection, malformed response,
-unsupported file, oversized file, or upload failure marks the job as failed at
-the portrait stage. The client receives a retryable user-facing error without
-profile data.
+付费请求一旦发出，系统绝不自动重试。下面任何一种情况都会让任务失败，而且不展示人物资料：
 
-If Blob upload succeeds but atomic database completion fails, the server makes a
-best-effort deletion of that newly uploaded object and marks the job failed at
-the persistence stage. Cleanup failure is logged without credentials or prompt
-contents. It must not turn the database operation into a second paid image call.
+- 等待超时；
+- OpenRouter 限流；
+- OpenRouter 服务错误；
+- 内容政策拒绝；
+- 返回内容损坏；
+- 图片类型不支持；
+- 图片过大；
+- 上传 Vercel Blob 失败。
 
-## Cost Controls
+如果图片已经上传到 Vercel Blob，但最后保存数据库失败，服务器会尽最大努力删除刚才上传的孤立图片，然后把任务标记为“保存失败”。如果删除图片也失败，只记录不包含密钥和提示词的安全日志，不会因此再调用一次付费图片接口。
 
-One user click can make at most one high-quality image request. There is no
-server-side fallback to another image model, no multi-image selection, and no
-automatic paid retry. OpenRouter account limits remain the hard budget control.
+## 费用控制
 
-When provider usage metadata includes cost, the implementation stores the
-actual cost in the generation job. Otherwise it stores a conservative estimate
-derived from the configured model pricing. Cost information is server-side and
-is not required for the initial UI.
+一次用户点击最多只允许发出一次高质量图片请求。系统不会自动换另一个图片模型，不会一次生成多张图，也不会自动付费重试。
 
-## Configuration
+OpenRouter 账号里的预算上限，是最终的费用保险。如果 OpenRouter 返回本次调用费用，就把实际费用记录到生成任务里；如果没有返回，就根据模型价格保存一个偏保守的估算值。第一版网页不需要把费用显示给用户。
 
-The feature adds or uses these server-only variables:
+## 环境变量
+
+这项功能会使用以下服务器端变量：
 
 ```text
 OPENROUTER_API_KEY
@@ -227,76 +199,62 @@ OPENROUTER_IMAGE_MODEL=openai/gpt-image-2
 BLOB_READ_WRITE_TOKEN
 ```
 
-`OPENROUTER_MODEL` remains reserved for the legacy OpenRouter dialogue adapter;
-the active NPC dialogue provider continues to use official Kimi configuration.
-No secret value may enter `NEXT_PUBLIC_*`, browser bundles, source control, or
-application logs.
+原来的 `OPENROUTER_MODEL` 继续保留给旧的 OpenRouter 对话适配器。现在真正使用的 NPC 对话模型仍然是 Kimi 官方 API，不受这次图片改动影响。
 
-Vercel Blob may use the project integration's injected credential instead of a
-manually copied token when supported by the deployed environment. Local
-development still needs an authorized Blob credential for a live upload test.
+任何密钥都不能放进 `NEXT_PUBLIC_*`，不能进入浏览器代码、Git 或应用日志。
 
-## UI Changes
+正式部署时，如果 Vercel 项目集成能自动提供 Blob 身份验证，就不需要手动复制 Token。本地做真实上传测试时，仍然需要有权限的 Blob 凭证。
 
-The current initials block becomes a fixed 3:4 image surface for all newly
-generated NPCs. Dimensions remain stable during loading, success, and error so
-the profile layout does not shift. The history list uses a small 3:4 crop of the
-same URL.
+## 网页界面怎么改
 
-Because the old NPC dataset has been removed, production data no longer needs an
-initials fallback. A defensive fallback may remain for malformed responses, but
-it is an error state rather than a supported legacy experience.
+目前的人物首字母方块改成固定 3:4 的真实照片区域。加载、成功和失败时尺寸都保持不变，避免页面上下跳动。
 
-The image host is explicitly allowlisted in the current Next.js image
-configuration, following the installed Next.js version's documented remote
-image rules.
+历史记录显示同一张照片的 3:4 小缩略图。旧 NPC 数据已经清空，因此正式数据不需要继续支持首字母头像。代码可以保留一个防御性错误占位，但它只代表数据异常，不是正常功能。
 
-## Testing Strategy
+图片域名需要按照当前项目安装的 Next.js 版本，在图片远程域名配置里明确允许。
 
-Unit tests cover:
+## 怎么测试
 
-- deterministic prompt construction and exclusion of narrative/private fields;
-- fixed model parameters and exactly one provider request;
-- timeout, 429, 5xx, policy, malformed base64, signature, and size failures;
-- extension and content type selection from validated bytes;
-- Blob upload input, immutable naming, and best-effort cleanup;
-- completed, running, and failed idempotency behavior.
+基础逻辑测试包括：
 
-Database tests cover:
+- 同一份人物资料总能生成结构一致的提示词；
+- 提示词不会包含人物故事、记忆和私人地址；
+- 模型参数固定，并且一次任务只请求一次图片；
+- 正确处理超时、限流、服务错误、政策拒绝和损坏的 Base64；
+- 正确识别图片格式和图片大小；
+- 正确上传、命名和清理 Blob 文件；
+- 正确处理已完成、生成中和失败的重复请求。
 
-- full-mode jobs cannot complete without a portrait URL;
-- NPC insert and job completion commit atomically;
-- failures expose no NPC through history or detail queries;
-- Blob-success/database-failure invokes cleanup exactly once.
+数据库测试包括：
 
-Component and end-to-end tests cover:
+- `full` 任务没有图片地址就不能完成；
+- 创建 NPC 和完成任务必须一起成功或一起失败；
+- 失败任务不能通过历史或详情接口看到 NPC；
+- 图片上传成功但数据库失败时，只调用一次图片清理。
 
-- no name, attributes, or image appears before the completed response;
-- fixed 3:4 loading and error states do not shift layout;
-- completed portrait appears in the profile and history;
-- manual retry creates one new attempt;
-- desktop and mobile screenshots have no overlap or clipped text.
+网页测试包括：
 
-After automated tests pass, one deliberately generated live NPC verifies the
-paid OpenRouter call, Blob URL, database persistence, production image render,
-and atomic reveal. This smoke test is performed once to control cost.
+- 完成以前不显示名字、人物属性和图片；
+- 3:4 加载状态和错误状态不会造成布局跳动；
+- 成功后，详情和历史记录都能看到同一张照片；
+- 手动重试只创建一次新任务；
+- 桌面和手机截图都没有元素重叠和文字被截断。
 
-## Acceptance Criteria
+所有自动测试通过后，只生成一个真实 NPC，检查 OpenRouter 付费调用、Vercel Blob 地址、数据库保存、正式图片显示和统一展示是否都正确。只测试一次，控制费用。
 
-1. Every newly visible NPC has one persisted GPT Image 2 portrait.
-2. The browser never receives or displays a partial profile before the portrait
-   and database transaction are complete.
-3. A generation attempt sends at most one paid image request.
-4. Provider, validation, upload, and persistence failures show a manual retry
-   path without creating a visible NPC.
-5. Completed requests are idempotent and do not regenerate portraits.
-6. Portrait files contain no private identifiers in their public paths.
-7. All focused tests, full tests, typecheck, build, and desktop/mobile visual QA
-   pass before deployment.
+## 最终验收标准
 
-## References
+1. 每一个新展示出来的 NPC 都有一张已经保存的 GPT Image 2 照片。
+2. 照片和数据库事务全部完成以前，浏览器拿不到也看不到半成品人物资料。
+3. 一次生成任务最多发送一次付费图片请求。
+4. 图片服务、图片检查、上传或保存失败时，不创建可见 NPC，并提供手动重试。
+5. 已完成任务被重复请求时，直接返回原结果，不重复生成图片。
+6. 公开图片地址不包含任何私人身份信息。
+7. 专项测试、完整测试、类型检查、构建，以及桌面和手机视觉检查全部通过后，才能部署。
+
+## 官方资料
 
 - [OpenRouter GPT Image 2](https://openrouter.ai/openai/gpt-image-2)
-- [OpenRouter image generation](https://openrouter.ai/docs/guides/overview/multimodal/image-generation)
+- [OpenRouter 图片生成文档](https://openrouter.ai/docs/guides/overview/multimodal/image-generation)
 - [Vercel Blob SDK](https://vercel.com/docs/vercel-blob/using-blob-sdk)
-- [Vercel function duration](https://vercel.com/docs/functions/configuring-functions/duration)
+- [Vercel 函数运行时长](https://vercel.com/docs/functions/configuring-functions/duration)
