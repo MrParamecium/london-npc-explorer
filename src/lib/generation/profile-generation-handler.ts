@@ -29,9 +29,22 @@ const GENERATION_ERROR_CODES = new Set([
   "statistics_unavailable",
   "invalid_distribution",
   "compatibility_exhausted",
+  "provider_timeout",
+  "invalid_output",
+  "portrait_failed",
+  "budget_exceeded",
   "persistence_failed",
   "unknown",
 ]);
+
+const PORTRAIT_ERROR_MESSAGES: Partial<
+  Record<ProfileGenerationError["code"], string>
+> = {
+  provider_timeout: "Portrait generation timed out.",
+  invalid_output: "The portrait provider returned an unusable image.",
+  portrait_failed: "The portrait could not be generated.",
+  budget_exceeded: "The portrait request exceeded the configured budget.",
+};
 
 const RATE_LIMITED = {
   error: {
@@ -93,7 +106,7 @@ export function createProfileGenerationHandler(dependencies: {
           {
             error: {
               code: error.code,
-              message: error.message,
+              message: PORTRAIT_ERROR_MESSAGES[error.code] ?? error.message,
               retryable: error.retryable,
             },
           },

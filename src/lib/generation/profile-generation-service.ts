@@ -10,9 +10,10 @@ import {
   getGenerationJobForOwnerByIdempotency,
   markGenerationJobFailed,
   markGenerationJobRunning,
+  markGenerationJobStage,
 } from "@/lib/db/queries/generation-jobs";
 import {
-  completeProfileNpcAtomically,
+  completeFullNpcAtomically,
   getProfileNpcForOwner,
   serializeProfileNpc,
 } from "@/lib/db/queries/profile-npcs";
@@ -20,6 +21,7 @@ import type { Database } from "@/lib/db/client";
 import { createDatabase } from "@/lib/db/client";
 import {
   NpcV2VersionSetSchema,
+  CanonicalNpcProfileV2Schema,
   type NpcV2VersionSet,
 } from "@/lib/npc/contracts";
 import {
@@ -31,6 +33,9 @@ import { buildProbabilityBundle } from "@/lib/statistics/build-probability-bundl
 import { resolveActiveVersionSet } from "@/lib/statistics/active-version-set";
 import type { ActiveStatisticalVersionSet } from "@/lib/statistics/contracts";
 import { loadSpatialStatisticCandidates } from "@/lib/statistics/spatial-statistics-repository";
+import { buildPortraitPrompt } from "./portrait-prompt";
+import type { PortraitRuntime } from "./portrait-runtime";
+import { PortraitGenerationError } from "./portrait-types";
 
 import {
   GenerationIdempotencyKeySchema,
@@ -43,6 +48,10 @@ export class ProfileGenerationError extends Error {
     | "statistics_unavailable"
     | "invalid_distribution"
     | "compatibility_exhausted"
+    | "provider_timeout"
+    | "invalid_output"
+    | "portrait_failed"
+    | "budget_exceeded"
     | "persistence_failed"
     | "unknown";
   readonly retryable: boolean;
@@ -69,17 +78,19 @@ export type ProfileGenerationDependencies = {
   database?: Database;
   resolveGeography?: typeof resolveLondonGeography;
   randomSeed?: () => string;
+  portraitRuntime?: PortraitRuntime;
 };
 
 function makeVersionSet(
   versionSet: ActiveStatisticalVersionSet,
+  imageModel: string,
 ): NpcV2VersionSet {
   return NpcV2VersionSetSchema.parse({
     datasetVersionIds: versionSet.datasetVersionIds,
     probabilityEngineVersion: PROBABILITY_ENGINE_VERSION,
     templateVersion: LONDON_NPC_TEMPLATE_VERSION,
     textModel: null,
-    imageModel: null,
+    imageModel,
   });
 }
 
@@ -89,6 +100,13 @@ function safeSeed(randomSeed: () => string) {
 
 function safeFailure(error: unknown): ProfileGenerationError {
   if (error instanceof ProfileGenerationError) return error;
+  if (error instanceof PortraitGenerationError) {
+    return new ProfileGenerationError(
+      error.code,
+      error.message,
+      error.retryable,
+    );
+  }
   if (
     error instanceof Error &&
     (error.name === "SpatialStatisticsUnavailableError" ||
@@ -107,8 +125,7 @@ function safeFailure(error: unknown): ProfileGenerationError {
   }
   if (
     error instanceof Error &&
-    (error.name === "ProfileNpcCompletionConflict" ||
-      error.name === "NeonDbError")
+    (error.name === "FullNpcCompletionConflict" || error.name === "NeonDbError")
   ) {
     return new ProfileGenerationError(
       "persistence_failed",
@@ -129,6 +146,30 @@ function safeFailure(error: unknown): ProfileGenerationError {
     "unknown",
     "NPC generation failed. Please try again.",
   );
+}
+
+async function advanceGenerationStage(
+  database: Database,
+  ownerId: string,
+  jobId: string,
+  stage: "profile" | "portrait" | "persistence",
+) {
+  try {
+    const updated = await markGenerationJobStage(
+      database,
+      ownerId,
+      jobId,
+      stage,
+    );
+    if (!updated) {
+      throw new Error("The generation job is no longer eligible.");
+    }
+  } catch {
+    throw new ProfileGenerationError(
+      "persistence_failed",
+      "Generation progress could not be saved.",
+    );
+  }
 }
 
 function responseForJob(job: {
@@ -216,6 +257,15 @@ export async function generateProfileNpc(
     return responseForJob(existingJob);
   }
 
+  const portraitRuntime = dependencies.portraitRuntime;
+  if (!portraitRuntime) {
+    throw new ProfileGenerationError(
+      "portrait_failed",
+      "Portrait generation is not configured.",
+      false,
+    );
+  }
+
   const geographyResult = await resolveGeography(database, coordinates);
   if (!geographyResult.supported) {
     throw new ProfileGenerationError(
@@ -241,13 +291,16 @@ export async function generateProfileNpc(
   } catch (error) {
     throw safeFailure(error);
   }
-  const versionSet = makeVersionSet(activeVersionSet);
+  const versionSet = makeVersionSet(
+    activeVersionSet,
+    portraitRuntime.imageModel,
+  );
   const created = await createOrReuseGenerationJobWithStatus(database, {
     ownerId,
     locationId: location.id,
     idempotencyKey,
     seed: safeSeed(randomSeed),
-    mode: "profile_only",
+    mode: "full",
     versionSet,
     estimatedCostUsd: 0,
   });
@@ -298,18 +351,59 @@ export async function generateProfileNpc(
       versionSet: activeVersionSet,
       rows,
     });
+    await advanceGenerationStage(database, ownerId, running.id, "profile");
     const sampled = sampleLondonNpc({ seed: running.seed, bundle });
-    const completion = await completeProfileNpcAtomically(database, {
-      jobId: running.id,
-      ownerId,
-      locationId: location.id,
-      seed: running.seed,
-      canonicalProfile: sampled.canonicalProfile,
+    const canonicalProfile = CanonicalNpcProfileV2Schema.parse(
+      sampled.canonicalProfile,
+    );
+    const prompt = buildPortraitPrompt({
+      profile: canonicalProfile,
       currentState: sampled.currentState,
-      versionSet,
-      fieldProvenance: sampled.fieldProvenance,
-      narrative: sampled.narrative,
+      place: {
+        ward: geographyResult.geography.ward?.name ?? null,
+        borough: geographyResult.geography.borough.name,
+      },
     });
+    await advanceGenerationStage(database, ownerId, running.id, "portrait");
+    const image = await portraitRuntime.generate({ prompt });
+    const stored = await portraitRuntime.store({
+      jobId: running.id,
+      image,
+    });
+    let completion;
+    try {
+      await advanceGenerationStage(
+        database,
+        ownerId,
+        running.id,
+        "persistence",
+      );
+      completion = await completeFullNpcAtomically(database, {
+        jobId: running.id,
+        ownerId,
+        locationId: location.id,
+        seed: running.seed,
+        canonicalProfile,
+        currentState: sampled.currentState,
+        versionSet,
+        fieldProvenance: sampled.fieldProvenance,
+        narrative: sampled.narrative,
+        portraitUrl: stored.url,
+        estimatedCostUsd: image.costUsd ?? 0,
+      });
+    } catch (error) {
+      try {
+        await portraitRuntime.remove(stored.url);
+      } catch {
+        // Keep the database error as the user-visible failure; cleanup is best effort.
+        console.warn("Portrait cleanup failed after persistence error.");
+      }
+      if (error instanceof ProfileGenerationError) throw error;
+      throw new ProfileGenerationError(
+        "persistence_failed",
+        "NPC generation could not be saved.",
+      );
+    }
     const npc = await getProfileNpcForOwner(
       database,
       ownerId,

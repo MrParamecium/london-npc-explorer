@@ -28,10 +28,3 @@ export const CompleteFullNpcInputSchema = CompleteNpcBaseSchema.extend({
 }).strict();
 
 export type CompleteFullNpcInput = z.input<typeof CompleteFullNpcInputSchema>;
-
-// Kept until the generation orchestrator migrates to full-mode persistence.
-export const CompleteProfileNpcInputSchema = CompleteNpcBaseSchema.strict();
-
-export type CompleteProfileNpcInput = z.input<
-  typeof CompleteProfileNpcInputSchema
->;

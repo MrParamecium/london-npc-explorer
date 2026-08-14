@@ -113,6 +113,46 @@ describe("profile generation handler", () => {
     expect(serialized).not.toMatch(/postgres|secret|AIza/i);
   });
 
+  it.each([
+    "provider_timeout",
+    "invalid_output",
+    "portrait_failed",
+    "budget_exceeded",
+  ] as const)("returns a safe portrait error for %s", async (code) => {
+    const publicMessages = {
+      provider_timeout: "Portrait generation timed out.",
+      invalid_output: "The portrait provider returned an unusable image.",
+      portrait_failed: "The portrait could not be generated.",
+      budget_exceeded: "The portrait request exceeded the configured budget.",
+    } as const;
+    const handler = createProfileGenerationHandler({
+      getAuthenticatedUserId: async () => "user_2handlerOwner",
+      ensureUser: async (userId) => userId,
+      generate: vi
+        .fn()
+        .mockRejectedValue(
+          new ProfileGenerationError(
+            code,
+            "SECRET-UPSTREAM-DETAIL: raw provider payload",
+          ),
+        ),
+      throttle: throttle(),
+    });
+
+    const response = await handler(request(validBody));
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toEqual({
+      error: {
+        code,
+        message: publicMessages[code],
+        retryable: true,
+      },
+    });
+    expect(JSON.stringify(body)).not.toMatch(/secret|upstream|prompt|base64/i);
+  });
+
   it("returns 429 with retry-after for repeated user requests", async () => {
     const generate = vi.fn().mockResolvedValue({ status: "queued" });
     const handler = createProfileGenerationHandler({
