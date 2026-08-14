@@ -21,8 +21,8 @@ before making project changes. It contains no credentials.
 - Default branch: `main`
 - Current local feature baseline: `aa42f47`
   (`fix: stream OpenRouter portrait generation`).
-- At verification time, the local `main` checkout was 17 commits ahead of
-  `origin/main`; do not assume another worktree already contains these commits.
+- At verification time, the local `main` checkout was ahead of `origin/main`;
+  do not assume another worktree already contains these commits.
 - The Google Maps worktree at `$CODEX_HOME/worktrees/7371/zhe` is a detached,
   older checkout at `0246aca`. Its Google Maps commits are already ancestors of
   `main`; do not create a duplicate PR for them.
@@ -84,8 +84,8 @@ avoidance, WeChat login, and QQ login are intentionally out of scope.
 
 - Real Street View scene integration.
 - 3D and 360-degree scene generation.
-- Final paid portrait smoke verification after the streaming fix and final-domain
-  Clerk/Google allowlists.
+- Clerk production instance/keys and final launch allowlist review. The current
+  production page still reports Clerk development keys.
 - External game/API authentication, quotas, versioning, and billing.
 - Durable multi-session NPC memory. The current dialogue UI labels the chat as
   page-only.
@@ -161,8 +161,12 @@ printing their values.
 - The single authorized live smoke request against the previous deployment
   reached the portrait stage and failed with a safe `provider_timeout` after an
   upstream timeout. It created no NPC and left the Blob store at 0 files.
-- No second paid request was sent automatically. The next manual click can
-  validate the streaming fix when the owner is ready to spend one image call.
+- No automatic retry was sent. After explicit approval, one request against the
+  streaming deployment completed in about 75 seconds and produced Dani Clarke.
+- The successful job and NPC both reached `completed`, stored the same portrait
+  URL, and recorded an image cost of approximately USD 0.2026 with no failure.
+- Vercel Blob contains exactly one 2.47 MB portrait. The profile and history
+  render the same underlying Blob URL at their appropriate image widths.
 
 ## Google Maps Configuration Already Completed
 
@@ -198,13 +202,11 @@ live services. Never paste their environment values into an issue or chat.
 
 ## Recommended Next Loops
 
-1. Deploy the portrait pipeline and perform exactly one paid production smoke
-   test without automatically retrying a sent image request.
+1. Replace Clerk development keys with a production Clerk instance and verify
+   the final domain allowlists.
 2. Add the real 2D Street View scene with Google attribution and explicit cost
    controls.
-3. Configure production Clerk/Google allowlists for the final domain and run a
-   production smoke test.
-4. Design the external game API only after the browser workflow is stable.
+3. Design the external game API only after the browser workflow is stable.
 
 ## Prompt for Another Codex Chat
 
