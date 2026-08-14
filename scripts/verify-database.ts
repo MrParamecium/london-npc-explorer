@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
+
 import { createDatabase } from "../src/lib/db/client";
 import {
   completeEncounterAtomically,
@@ -11,7 +13,7 @@ import {
 } from "../src/lib/db/queries/generation-jobs";
 import { saveLocation } from "../src/lib/db/queries/locations";
 import { ensureAppUser } from "../src/lib/db/queries/users";
-import { datasetVersions } from "../src/lib/db/schema";
+import { appUsers, datasetVersions } from "../src/lib/db/schema";
 import { CompleteEncounterInputSchema } from "../src/lib/generation/encounter-contracts";
 import { resolveLondonGeography } from "../src/lib/location/london-geography-repository";
 import {
@@ -22,10 +24,13 @@ import {
   validVersionSet,
 } from "../tests/fixtures/domain";
 
+let checkpointOwnerId: string | null = null;
+
 async function verifyDatabase() {
   const database = createDatabase();
   const runId = randomUUID();
   const ownerId = `user_dbCheckpoint_${runId.replaceAll("-", "")}`;
+  checkpointOwnerId = ownerId;
 
   await ensureAppUser(database, ownerId);
   await database
@@ -144,7 +149,23 @@ async function verifyDatabase() {
   );
 }
 
-verifyDatabase().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+verifyDatabase()
+  .catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (!checkpointOwnerId) return;
+
+    try {
+      const database = createDatabase();
+      await database.delete(appUsers).where(eq(appUsers.id, checkpointOwnerId));
+    } catch (error) {
+      console.error(
+        error instanceof Error
+          ? `Database verification cleanup failed: ${error.message}`
+          : "Database verification cleanup failed.",
+      );
+      process.exitCode = 1;
+    }
+  });
