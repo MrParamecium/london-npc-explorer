@@ -19,9 +19,9 @@ before making project changes. It contains no credentials.
 
 - Repository: `https://github.com/MrParamecium/london-npc-explorer`
 - Default branch: `main`
-- Current local feature baseline: `a44d4be`
-  (`fix: clean up database verification fixtures`).
-- At verification time, the local `main` checkout was 15 commits ahead of
+- Current local feature baseline: `aa42f47`
+  (`fix: stream OpenRouter portrait generation`).
+- At verification time, the local `main` checkout was 17 commits ahead of
   `origin/main`; do not assume another worktree already contains these commits.
 - The Google Maps worktree at `$CODEX_HOME/worktrees/7371/zhe` is a detached,
   older checkout at `0246aca`. Its Google Maps commits are already ancestors of
@@ -76,14 +76,16 @@ avoidance, WeChat login, and QQ login are intentionally out of scope.
 - Structured agent responses, chat API, NPC dialogue UI, and the Kimi K3
   official dialogue provider with server-only credentials.
 - One-shot GPT Image 2 portrait generation through OpenRouter, 3:4 portrait
-  storage in Vercel Blob, and atomic profile-plus-image reveal.
+  storage in Vercel Blob, atomic profile-plus-image reveal, and SSE handling for
+  long-running image generations.
 - Request throttles on location, generation, and dialogue paths.
 
 ### Not Complete
 
 - Real Street View scene integration.
 - 3D and 360-degree scene generation.
-- Production Vercel deployment verification and final-domain allowlists.
+- Final paid portrait smoke verification after the streaming fix and final-domain
+  Clerk/Google allowlists.
 - External game/API authentication, quotas, versioning, and billing.
 - Durable multi-session NPC memory. The current dialogue UI labels the chat as
   page-only.
@@ -150,6 +152,17 @@ Clerk, Google Maps, and Blob variables. `PROVIDER_MODE` is `live` there. Local
 development can remain in mock mode. `.env.local` is Git-ignored and worktrees
 do not automatically share it, so verify each worktree's variable names without
 printing their values.
+
+## Production Deployment Status
+
+- Production alias: `https://london-npc-explorer.vercel.app/`.
+- Latest deployment: `dpl_925bWZqsZ7Zzqt8CeNT3LW4k2uE4` (READY), with the
+  streaming portrait fix.
+- The single authorized live smoke request against the previous deployment
+  reached the portrait stage and failed with a safe `provider_timeout` after an
+  upstream timeout. It created no NPC and left the Blob store at 0 files.
+- No second paid request was sent automatically. The next manual click can
+  validate the streaming fix when the owner is ready to spend one image call.
 
 ## Google Maps Configuration Already Completed
 
