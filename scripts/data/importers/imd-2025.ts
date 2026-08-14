@@ -21,8 +21,14 @@ export function transformImdDecile(value: string) {
 }
 
 export async function readLondonImd(path: string) {
-  const boroughs = new Map<string, { key: string; label: string; count: number }[]>();
-  const london = new Map<string, { key: string; label: string; count: number }[]>();
+  const boroughs = new Map<
+    string,
+    { key: string; label: string; count: number }[]
+  >();
+  const london = new Map<
+    string,
+    { key: string; label: string; count: number }[]
+  >();
   const statistics = [];
   const parser = createReadStream(path).pipe(
     parse({ columns: true, bom: true, skip_empty_lines: true, trim: true }),
@@ -31,7 +37,8 @@ export async function readLondonImd(path: string) {
     const row = raw as Record<string, string>;
     const lsoaCode = row["LSOA code (2021)"] ?? "";
     const boroughCode = row["Local Authority District code (2024)"] ?? "";
-    if (!/^E01\d{6}$/.test(lsoaCode) || !/^E09\d{6}$/.test(boroughCode)) continue;
+    if (!/^E01\d{6}$/.test(lsoaCode) || !/^E09\d{6}$/.test(boroughCode))
+      continue;
     const category = transformImdDecile(row[DECILE_COLUMN] ?? "");
     statistics.push({
       geographyLevel: "lsoa" as const,

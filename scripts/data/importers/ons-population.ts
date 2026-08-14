@@ -41,7 +41,10 @@ export function transformPopulationRow(row: PopulationSourceRow) {
 }
 
 export async function readLondonPopulation(path: string) {
-  const byBorough = new Map<string, ReturnType<typeof transformPopulationRow>>();
+  const byBorough = new Map<
+    string,
+    ReturnType<typeof transformPopulationRow>
+  >();
   const london = new Map<string, ReturnType<typeof transformPopulationRow>>();
   const statistics = [];
   const workbook = new ExcelJS.stream.xlsx.WorkbookReader(path, {
@@ -102,7 +105,8 @@ export async function readLondonPopulation(path: string) {
     });
   }
   const londonCategories = london.get(LONDON_REGION_CODE);
-  if (!londonCategories) throw new Error("Population source has no London rows.");
+  if (!londonCategories)
+    throw new Error("Population source has no London rows.");
   statistics.push({
     geographyLevel: "london" as const,
     geographyCode: LONDON_REGION_CODE,

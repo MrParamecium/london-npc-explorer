@@ -44,7 +44,10 @@ export async function downloadSource(source: SourceManifestEntry) {
     await verify(path, source);
     return path;
   } catch (error) {
-    if (error instanceof Error && /failed SHA-256|expected .* bytes/.test(error.message)) {
+    if (
+      error instanceof Error &&
+      /failed SHA-256|expected .* bytes/.test(error.message)
+    ) {
       await unlink(path).catch(() => undefined);
     }
   }

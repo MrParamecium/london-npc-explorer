@@ -73,8 +73,16 @@ const CONFIGS: Record<CensusSourceKey, CensusConfig> = {
         metricId: "economic_activity",
         denominator: "residents_16_plus",
         categoryColumns: [
-          { key: "employee_full_time", label: "Employee, full-time", columns: [5] },
-          { key: "employee_part_time", label: "Employee, part-time", columns: [6] },
+          {
+            key: "employee_full_time",
+            label: "Employee, full-time",
+            columns: [5],
+          },
+          {
+            key: "employee_part_time",
+            label: "Employee, part-time",
+            columns: [6],
+          },
           {
             key: "active_full_time_student",
             label: "Economically active full-time student",
@@ -96,10 +104,22 @@ const CONFIGS: Record<CensusSourceKey, CensusConfig> = {
             label: "Long-term sick or disabled",
             columns: [13],
           },
-          { key: "carer", label: "Looking after home or family", columns: [14] },
-          { key: "other_inactive", label: "Other economically inactive", columns: [15] },
+          {
+            key: "carer",
+            label: "Looking after home or family",
+            columns: [14],
+          },
+          {
+            key: "other_inactive",
+            label: "Other economically inactive",
+            columns: [15],
+          },
           { key: "retired", label: "Retired", columns: [16] },
-          { key: "inactive_student", label: "Economically inactive student", columns: [17] },
+          {
+            key: "inactive_student",
+            label: "Economically inactive student",
+            columns: [17],
+          },
         ],
       },
       {
@@ -120,14 +140,32 @@ const CONFIGS: Record<CensusSourceKey, CensusConfig> = {
         metricId: "occupation_major_group",
         denominator: "workers",
         categoryColumns: [
-          ["soc1_managers_directors_senior_officials", "Managers, directors and senior officials"],
+          [
+            "soc1_managers_directors_senior_officials",
+            "Managers, directors and senior officials",
+          ],
           ["soc2_professional", "Professional occupations"],
-          ["soc3_associate_professional_technical", "Associate professional and technical occupations"],
-          ["soc4_administrative_secretarial", "Administrative and secretarial occupations"],
+          [
+            "soc3_associate_professional_technical",
+            "Associate professional and technical occupations",
+          ],
+          [
+            "soc4_administrative_secretarial",
+            "Administrative and secretarial occupations",
+          ],
           ["soc5_skilled_trades", "Skilled trades occupations"],
-          ["soc6_caring_leisure_service", "Caring, leisure and other service occupations"],
-          ["soc7_sales_customer_service", "Sales and customer service occupations"],
-          ["soc8_process_plant_machine", "Process, plant and machine operatives"],
+          [
+            "soc6_caring_leisure_service",
+            "Caring, leisure and other service occupations",
+          ],
+          [
+            "soc7_sales_customer_service",
+            "Sales and customer service occupations",
+          ],
+          [
+            "soc8_process_plant_machine",
+            "Process, plant and machine operatives",
+          ],
           ["soc9_elementary", "Elementary occupations"],
         ].map(([key, label], index) => ({ key, label, columns: [index + 5] })),
       },
@@ -167,7 +205,10 @@ const CONFIGS: Record<CensusSourceKey, CensusConfig> = {
           ["owned_outright", "Owned outright"],
           ["owned_mortgage", "Owned with a mortgage or loan"],
           ["shared_ownership", "Shared ownership"],
-          ["social_rented_council", "Social rented from council or Local Authority"],
+          [
+            "social_rented_council",
+            "Social rented from council or Local Authority",
+          ],
           ["social_rented_other", "Other social rented"],
           ["private_rented_landlord", "Private landlord or letting agency"],
           ["private_rented_other", "Other private rented"],
@@ -233,13 +274,17 @@ export async function readLondonCensusWorkbook(
   const worksheet = workbook.getWorksheet("2021");
   if (!worksheet) throw new Error(`${sourceKey} has no 2021 worksheet.`);
 
-  const aggregates = new Map<string, Map<string, ReturnType<typeof transformCensusRow>[number]["categories"]>>();
+  const aggregates = new Map<
+    string,
+    Map<string, ReturnType<typeof transformCensusRow>[number]["categories"]>
+  >();
   const statistics = [];
   for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
     const values = worksheet.getRow(rowNumber).values as unknown[];
     const lsoaCode = String(values[config.lsoaColumn] ?? "").trim();
     const boroughCode = String(values[config.boroughColumn] ?? "").trim();
-    if (!/^E01\d{6}$/.test(lsoaCode) || !/^E09\d{6}$/.test(boroughCode)) continue;
+    if (!/^E01\d{6}$/.test(lsoaCode) || !/^E09\d{6}$/.test(boroughCode))
+      continue;
 
     for (const transformed of transformCensusRow(sourceKey, values)) {
       statistics.push({
@@ -258,7 +303,11 @@ export async function readLondonCensusWorkbook(
         aggregates.set(transformed.metricId, metricAggregates);
       }
       aggregateCounts(metricAggregates, boroughCode, transformed.categories);
-      aggregateCounts(metricAggregates, LONDON_REGION_CODE, transformed.categories);
+      aggregateCounts(
+        metricAggregates,
+        LONDON_REGION_CODE,
+        transformed.categories,
+      );
     }
   }
 

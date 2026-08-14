@@ -26,7 +26,10 @@ export function includeAdultHouseholdRow(row: HouseholdCsvRow) {
 }
 
 export async function readLondonHouseholdComposition(path: string) {
-  const boroughs = new Map<string, Map<string, { key: string; label: string; count: number }>>();
+  const boroughs = new Map<
+    string,
+    Map<string, { key: string; label: string; count: number }>
+  >();
   const parser = createReadStream(path).pipe(
     parse({ columns: true, bom: true, skip_empty_lines: true, trim: true }),
   );
@@ -78,7 +81,8 @@ export async function readLondonHouseholdComposition(path: string) {
     aggregateCounts(london, LONDON_REGION_CODE, categories);
   }
   const londonCategories = london.get(LONDON_REGION_CODE);
-  if (!londonCategories) throw new Error("RM057 contains no London observations.");
+  if (!londonCategories)
+    throw new Error("RM057 contains no London observations.");
   statistics.push({
     geographyLevel: "london" as const,
     geographyCode: LONDON_REGION_CODE,

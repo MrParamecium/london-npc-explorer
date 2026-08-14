@@ -8,7 +8,8 @@ export function validateNormalizedRelease(rows: NormalizedStatistic[]) {
   for (const row of rows) {
     StatisticalDistributionSchema.parse(row.distribution);
     const key = `${row.geographyLevel}:${row.geographyCode}:${row.metricId}`;
-    if (unique.has(key)) throw new Error(`Duplicate normalized statistic ${key}.`);
+    if (unique.has(key))
+      throw new Error(`Duplicate normalized statistic ${key}.`);
     unique.add(key);
     if (row.geographyLevel === "london") londonMetrics.add(row.metricId);
   }

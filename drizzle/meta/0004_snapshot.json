@@ -161,12 +161,8 @@
           "name": "area_statistics_dataset_version_id_dataset_versions_id_fk",
           "tableFrom": "area_statistics",
           "tableTo": "dataset_versions",
-          "columnsFrom": [
-            "dataset_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["dataset_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -248,12 +244,8 @@
           "name": "conversations_owner_id_app_users_id_fk",
           "tableFrom": "conversations",
           "tableTo": "app_users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -261,12 +253,8 @@
           "name": "conversations_npc_id_npcs_id_fk",
           "tableFrom": "conversations",
           "tableTo": "npcs",
-          "columnsFrom": [
-            "npc_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["npc_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -560,12 +548,8 @@
           "name": "npc_generation_jobs_owner_id_app_users_id_fk",
           "tableFrom": "npc_generation_jobs",
           "tableTo": "app_users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -573,12 +557,8 @@
           "name": "npc_generation_jobs_location_id_locations_id_fk",
           "tableFrom": "npc_generation_jobs",
           "tableTo": "locations",
-          "columnsFrom": [
-            "location_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["location_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -586,12 +566,8 @@
           "name": "npc_generation_jobs_result_npc_id_npcs_id_fk",
           "tableFrom": "npc_generation_jobs",
           "tableTo": "npcs",
-          "columnsFrom": [
-            "result_npc_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["result_npc_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -745,12 +721,8 @@
           "name": "geography_boundaries_dataset_version_id_dataset_versions_id_fk",
           "tableFrom": "geography_boundaries",
           "tableTo": "dataset_versions",
-          "columnsFrom": [
-            "dataset_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["dataset_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1022,12 +994,8 @@
           "name": "messages_conversation_id_conversations_id_fk",
           "tableFrom": "messages",
           "tableTo": "conversations",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1144,12 +1112,8 @@
           "name": "npc_memories_npc_id_npcs_id_fk",
           "tableFrom": "npc_memories",
           "tableTo": "npcs",
-          "columnsFrom": [
-            "npc_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["npc_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1157,12 +1121,8 @@
           "name": "npc_memories_conversation_id_conversations_id_fk",
           "tableFrom": "npc_memories",
           "tableTo": "conversations",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1314,12 +1274,8 @@
           "name": "npcs_owner_id_app_users_id_fk",
           "tableFrom": "npcs",
           "tableTo": "app_users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1327,12 +1283,8 @@
           "name": "npcs_location_id_locations_id_fk",
           "tableFrom": "npcs",
           "tableTo": "locations",
-          "columnsFrom": [
-            "location_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["location_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1340,12 +1292,8 @@
           "name": "npcs_generation_job_id_npc_generation_jobs_id_fk",
           "tableFrom": "npcs",
           "tableTo": "npc_generation_jobs",
-          "columnsFrom": [
-            "generation_job_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["generation_job_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1366,20 +1314,12 @@
     "public.dataset_state": {
       "name": "dataset_state",
       "schema": "public",
-      "values": [
-        "pending",
-        "active",
-        "superseded",
-        "failed"
-      ]
+      "values": ["pending", "active", "superseded", "failed"]
     },
     "public.generation_mode": {
       "name": "generation_mode",
       "schema": "public",
-      "values": [
-        "profile_only",
-        "full"
-      ]
+      "values": ["profile_only", "full"]
     },
     "public.generation_stage": {
       "name": "generation_stage",
@@ -1397,31 +1337,17 @@
     "public.generation_status": {
       "name": "generation_status",
       "schema": "public",
-      "values": [
-        "queued",
-        "running",
-        "completed",
-        "failed",
-        "cancelled"
-      ]
+      "values": ["queued", "running", "completed", "failed", "cancelled"]
     },
     "public.geography_level": {
       "name": "geography_level",
       "schema": "public",
-      "values": [
-        "lsoa",
-        "ward",
-        "borough",
-        "london"
-      ]
+      "values": ["lsoa", "ward", "borough", "london"]
     },
     "public.message_role": {
       "name": "message_role",
       "schema": "public",
-      "values": [
-        "user",
-        "npc"
-      ]
+      "values": ["user", "npc"]
     }
   },
   "schemas": {},

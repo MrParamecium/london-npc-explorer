@@ -34,12 +34,16 @@ type SourceRows = {
 };
 
 async function extractAsheWorkbook(zipPath: string) {
-  const outputDirectory = resolve(process.cwd(), ".cache/statistics/v1/extracted");
+  const outputDirectory = resolve(
+    process.cwd(),
+    ".cache/statistics/v1/extracted",
+  );
   await mkdir(outputDirectory, { recursive: true });
   const outputPath = resolve(outputDirectory, "ashe-table-8-7a-2025.xlsx");
   const archive = await unzipper.Open.file(zipPath);
   const entry = archive.files.find(
-    (file) => file.type === "File" && /Table 8\.7a.*2025\.xlsx$/i.test(file.path),
+    (file) =>
+      file.type === "File" && /Table 8\.7a.*2025\.xlsx$/i.test(file.path),
   );
   if (!entry) throw new Error("ASHE archive does not contain Table 8.7a.");
   await unlink(outputPath).catch(() => undefined);
@@ -180,10 +184,14 @@ async function activateVersionsAtomically(
 
 async function main() {
   const apply = process.argv.includes("--apply");
-  console.info(`London statistics import starting in ${apply ? "apply" : "dry-run"} mode.`);
+  console.info(
+    `London statistics import starting in ${apply ? "apply" : "dry-run"} mode.`,
+  );
   const manifest = await loadSourceManifest(MANIFEST_PATH);
   assertDocumentedMappings(manifest);
-  console.info(`Manifest verified with ${manifest.sources.length} pinned source files.`);
+  console.info(
+    `Manifest verified with ${manifest.sources.length} pinned source files.`,
+  );
   const sources: SourceRows[] = [];
 
   for (const source of manifest.sources) {
@@ -192,7 +200,9 @@ async function main() {
     console.info(`${source.key}: transforming ${basename(path)}.`);
     const rows = await transformSource(source, path);
     sources.push({ source, rows });
-    console.info(`${source.key}: ${rows.length} normalized rows from ${basename(path)}.`);
+    console.info(
+      `${source.key}: ${rows.length} normalized rows from ${basename(path)}.`,
+    );
   }
   const validation = validateNormalizedRelease(
     sources.flatMap((source) => source.rows),
@@ -240,6 +250,8 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : "Unknown import failure.");
+  console.error(
+    error instanceof Error ? error.message : "Unknown import failure.",
+  );
   process.exitCode = 1;
 });

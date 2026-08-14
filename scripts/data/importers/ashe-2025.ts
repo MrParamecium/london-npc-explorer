@@ -7,21 +7,27 @@ const PERCENTILES = [10, 20, 30, 40, 60, 70, 80, 90] as const;
 
 export function annualPayBands(values: Array<number | string>) {
   if (values.length !== PERCENTILES.length) {
-    throw new Error("ASHE requires the 10th through 90th percentile cut points.");
+    throw new Error(
+      "ASHE requires the 10th through 90th percentile cut points.",
+    );
   }
   const cutPoints = values.map((value) => Number(value));
   if (
     cutPoints.some((value) => !Number.isFinite(value) || value < 0) ||
-    cutPoints.some((value, index) => index > 0 && value <= cutPoints[index - 1]!)
+    cutPoints.some(
+      (value, index) => index > 0 && value <= cutPoints[index - 1]!,
+    )
   ) {
     throw new Error("ASHE percentile cells are suppressed or invalid.");
   }
   const labels = [
     `Below GBP ${Math.round(cutPoints[0]!).toLocaleString("en-GB")}`,
-    ...cutPoints.slice(0, -1).map(
-      (lower, index) =>
-        `GBP ${Math.round(lower).toLocaleString("en-GB")} to ${Math.round(cutPoints[index + 1]! - 1).toLocaleString("en-GB")}`,
-    ),
+    ...cutPoints
+      .slice(0, -1)
+      .map(
+        (lower, index) =>
+          `GBP ${Math.round(lower).toLocaleString("en-GB")} to ${Math.round(cutPoints[index + 1]! - 1).toLocaleString("en-GB")}`,
+      ),
     `GBP ${Math.round(cutPoints.at(-1)!).toLocaleString("en-GB")} or more`,
   ];
   return labels.map((label, index) => ({
@@ -50,18 +56,16 @@ export async function readLondonAsheAnnualPay(path: string) {
           String(candidate.getCell(2).value).trim() === LONDON_REGION_CODE,
       );
     if (!row) throw new Error(`ASHE has no London row in ${sheetName}.`);
-    const bands = annualPayBands([8, 9, 11, 12, 13, 14, 16, 17].map((column) =>
-      String(row.getCell(column).value ?? ""),
-    ));
+    const bands = annualPayBands(
+      [8, 9, 11, 12, 13, 14, 16, 17].map((column) =>
+        String(row.getCell(column).value ?? ""),
+      ),
+    );
     statistics.push({
       geographyLevel: "london" as const,
       geographyCode: LONDON_REGION_CODE,
       metricId: "employee_earnings",
-      distribution: normalizeCounts(
-        "employee_earnings",
-        "employees",
-        bands,
-      ),
+      distribution: normalizeCounts("employee_earnings", "employees", bands),
     });
   }
   return statistics;
