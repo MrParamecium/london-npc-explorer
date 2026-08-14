@@ -83,6 +83,12 @@ const PLACE_CATEGORY_ICONS = {
   culture_community: Landmark,
 } satisfies Record<NearbyPlaceCategory, typeof Coffee>;
 
+const generationCopy = {
+  profile: "Sampling local profile",
+  portrait: "Generating portrait",
+  persistence: "Saving encounter",
+} as const;
+
 function getAreaName(
   result: ResolvedLocation | null,
   status: ReturnType<typeof useLocationResolution>["status"],
@@ -582,7 +588,7 @@ export function ExplorerShell({
                 </h3>
                 <p>
                   {isGenerating
-                    ? `Sampling local distributions / ${npcGeneration.stage}.`
+                    ? generationCopy[npcGeneration.stage]
                     : "Generate one fictional character from the selected coordinate's local distributions."}
                 </p>
               </div>

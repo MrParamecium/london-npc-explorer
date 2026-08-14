@@ -13,6 +13,7 @@ import {
 
 type GenerationState = "idle" | "generating" | "ready" | "error";
 type HistoryState = "idle" | "loading" | "ready" | "error";
+export type NpcGenerationStage = "profile" | "portrait" | "persistence";
 
 const MAX_STATUS_ATTEMPTS = 15;
 
@@ -49,9 +50,21 @@ function prependUnique(history: PublicProfileNpc[], npc: PublicProfileNpc) {
   return [npc, ...history.filter((item) => item.npcId !== npc.npcId)];
 }
 
+function coarseStage(stage: string): NpcGenerationStage {
+  if (stage === "portrait") return "portrait";
+  if (stage === "persistence" || stage === "completed") return "persistence";
+  return "profile";
+}
+
+const STAGE_ORDER: Record<NpcGenerationStage, number> = {
+  profile: 0,
+  portrait: 1,
+  persistence: 2,
+};
+
 export function useNpcGeneration(fetchImpl: typeof fetch = fetch) {
   const [state, setState] = useState<GenerationState>("idle");
-  const [stage, setStage] = useState("idle");
+  const [stage, setStage] = useState<NpcGenerationStage>("profile");
   const [npc, setNpc] = useState<PublicProfileNpc | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<PublicProfileNpc[]>([]);
@@ -69,8 +82,12 @@ export function useNpcGeneration(fetchImpl: typeof fetch = fetch) {
       const idempotencyKey = newIdempotencyKey();
 
       setState("generating");
-      setStage("queued");
+      setStage("profile");
       setError(null);
+
+      const portraitTimer = window.setTimeout(() => {
+        if (!controller.signal.aborted) setStage("portrait");
+      }, 800);
 
       try {
         for (let attempt = 0; attempt < MAX_STATUS_ATTEMPTS; attempt += 1) {
@@ -85,9 +102,17 @@ export function useNpcGeneration(fetchImpl: typeof fetch = fetch) {
           const result = ProfileGenerationResponseSchema.parse(
             await response.json(),
           );
-          setStage(result.stage);
+          const responseStage = coarseStage(result.stage);
+          setStage((current) =>
+            STAGE_ORDER[responseStage] >= STAGE_ORDER[current]
+              ? responseStage
+              : current,
+          );
 
           if (result.status === "completed" && result.npc) {
+            window.clearTimeout(portraitTimer);
+            setStage("persistence");
+            await wait(250, controller.signal);
             setNpc(result.npc);
             setHistory((current) => prependUnique(current, result.npc!));
             setState("ready");
@@ -111,6 +136,8 @@ export function useNpcGeneration(fetchImpl: typeof fetch = fetch) {
         );
         setState("error");
         return null;
+      } finally {
+        window.clearTimeout(portraitTimer);
       }
     },
     [fetchImpl],
@@ -187,7 +214,7 @@ export function useNpcGeneration(fetchImpl: typeof fetch = fetch) {
   const resetForLocation = useCallback(() => {
     generationControllerRef.current?.abort();
     setState(npc ? "ready" : "idle");
-    setStage("idle");
+    setStage("profile");
     setError(null);
   }, [npc]);
 

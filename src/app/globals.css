@@ -349,15 +349,16 @@ textarea:focus-visible {
 }
 
 .history-list button > span:first-child {
-  display: grid;
+  display: block;
+}
+
+.history-portrait {
+  display: block;
   width: 32px;
-  height: 32px;
-  place-items: center;
+  height: 43px;
+  aspect-ratio: 3 / 4;
   border-radius: 4px;
-  background: var(--mint-dark);
-  color: var(--mint);
-  font-family: var(--display);
-  font-size: 12px;
+  object-fit: cover;
 }
 
 .history-list button > span:last-child {
@@ -1059,7 +1060,7 @@ textarea:focus-visible {
   position: relative;
   display: grid;
   width: min(100%, 286px);
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 3 / 4;
   place-items: center;
   margin: 0 auto;
   overflow: hidden;
@@ -1160,23 +1161,19 @@ textarea:focus-visible {
   gap: 15px;
 }
 
-.portrait-mock {
-  display: grid;
+.npc-portrait {
+  position: relative;
+  display: block;
   width: 94px;
-  aspect-ratio: 4 / 5;
-  place-items: end start;
-  padding: 10px;
+  aspect-ratio: 3 / 4;
   overflow: hidden;
   border: 1px solid rgba(216, 82, 72, 0.38);
   border-radius: 6px;
-  background: #d85248;
-  box-shadow: inset 0 -38px rgba(75, 21, 28, 0.14);
+  background: #dfe6ef;
 }
 
-.portrait-mock span {
-  font-family: var(--display);
-  font-size: 22px;
-  color: #ffffff;
+.npc-portrait img {
+  object-fit: cover;
 }
 
 .npc-identity h3 {
@@ -1756,7 +1753,7 @@ textarea:focus-visible {
     grid-template-columns: 84px 1fr;
   }
 
-  .portrait-mock {
+  .npc-portrait {
     width: 84px;
   }
 }

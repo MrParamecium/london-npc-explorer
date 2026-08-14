@@ -1,14 +1,7 @@
 import { LoaderCircle } from "lucide-react";
+import Image from "next/image";
 
 import type { PublicProfileNpc } from "@/lib/generation/public-profile-contracts";
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
 
 function occupation(npc: PublicProfileNpc) {
   return (
@@ -46,9 +39,14 @@ export function NpcHistory({
               onClick={() => onSelect(npc.npcId)}
               key={npc.npcId}
             >
-              <span>
-                {initials(npc.canonicalProfile.identity.fictionalName)}
-              </span>
+              <Image
+                className="history-portrait"
+                src={npc.portraitUrl}
+                alt={`Fictional portrait of ${npc.canonicalProfile.identity.fictionalName}`}
+                width={32}
+                height={43}
+                unoptimized={npc.portraitUrl.startsWith("data:")}
+              />
               <span>
                 <strong>{npc.canonicalProfile.identity.fictionalName}</strong>
                 <small>{occupation(npc)}</small>

@@ -9,16 +9,9 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
+import Image from "next/image";
 
 import type { PublicProfileNpc } from "@/lib/generation/public-profile-contracts";
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
 
 function humanize(value: string | null) {
   return value ? value.replaceAll("_", " ") : "Not applicable";
@@ -65,11 +58,14 @@ export function NpcProfile({
   return (
     <div className="npc-profile">
       <div className="npc-identity">
-        <div
-          className="portrait-mock"
-          aria-label={`Initials portrait for ${profile.identity.fictionalName}`}
-        >
-          <span>{initials(profile.identity.fictionalName)}</span>
+        <div className="npc-portrait">
+          <Image
+            src={npc.portraitUrl}
+            alt={`Fictional portrait of ${profile.identity.fictionalName}`}
+            fill
+            sizes="(max-width: 440px) 84px, 94px"
+            unoptimized={npc.portraitUrl.startsWith("data:")}
+          />
         </div>
         <div>
           <span className="profile-state">
