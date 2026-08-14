@@ -14,12 +14,27 @@ function imageResponse(
   bytes: Uint8Array,
   options: {
     cost?: number;
-    data?: Array<Record<string, unknown>>;
+    events?: unknown[];
+    includeDone?: boolean;
   } = {},
 ) {
-  return Response.json({
-    data: options.data ?? [{ b64_json: Buffer.from(bytes).toString("base64") }],
-    usage: options.cost === undefined ? undefined : { cost: options.cost },
+  const events = options.events ?? [
+    {
+      type: "image_generation.partial_image",
+      partial_image_index: 0,
+      b64_json: "AA==",
+    },
+    {
+      type: "image_generation.completed",
+      b64_json: Buffer.from(bytes).toString("base64"),
+      usage: options.cost === undefined ? undefined : { cost: options.cost },
+    },
+  ];
+  const lines = events.map((event) => `data: ${JSON.stringify(event)}\n\n`);
+  if (options.includeDone !== false) lines.push("data: [DONE]\n\n");
+
+  return new Response(lines.join(""), {
+    headers: { "content-type": "text/event-stream" },
   });
 }
 
@@ -46,6 +61,7 @@ describe("OpenRouter image provider", () => {
       aspect_ratio: "3:4",
       background: "opaque",
       n: 1,
+      stream: true,
     });
     expect(init.headers).toMatchObject({
       Authorization: "Bearer test-openrouter-key",
@@ -106,6 +122,8 @@ describe("OpenRouter image provider", () => {
   });
 
   it.each([
+    [408, "provider_timeout", true],
+    [504, "provider_timeout", true],
     [402, "budget_exceeded", false],
     [429, "portrait_failed", true],
     [500, "portrait_failed", true],
@@ -162,20 +180,36 @@ describe("OpenRouter image provider", () => {
   });
 
   it.each([
-    ["empty data", []],
+    ["no completed event", []],
     [
-      "multiple images",
+      "multiple completed events",
       [
-        { b64_json: Buffer.from(PNG_BYTES).toString("base64") },
-        { b64_json: Buffer.from(PNG_BYTES).toString("base64") },
+        {
+          type: "image_generation.completed",
+          b64_json: Buffer.from(PNG_BYTES).toString("base64"),
+        },
+        {
+          type: "image_generation.completed",
+          b64_json: Buffer.from(PNG_BYTES).toString("base64"),
+        },
       ],
     ],
-    ["missing image", [{}]],
-    ["invalid base64", [{ b64_json: "not-base64!!!" }]],
-  ])("rejects %s as invalid output", async (_label, data) => {
+    ["missing image", [{ type: "image_generation.completed" }]],
+    [
+      "invalid base64",
+      [
+        {
+          type: "image_generation.completed",
+          b64_json: "not-base64!!!",
+        },
+      ],
+    ],
+  ])("rejects %s as invalid output", async (_label, events) => {
     const provider = createOpenRouterImageProvider({
       apiKey: "test-openrouter-key",
-      fetchImpl: vi.fn().mockResolvedValue(imageResponse(PNG_BYTES, { data })),
+      fetchImpl: vi
+        .fn()
+        .mockResolvedValue(imageResponse(PNG_BYTES, { events })),
     });
 
     await expect(
@@ -191,8 +225,9 @@ describe("OpenRouter image provider", () => {
       apiKey: "test-openrouter-key",
       fetchImpl: vi.fn().mockResolvedValue(
         imageResponse(JPEG_BYTES, {
-          data: [
+          events: [
             {
+              type: "image_generation.completed",
               b64_json: Buffer.from(JPEG_BYTES).toString("base64"),
               media_type: "image/png",
             },
@@ -220,6 +255,46 @@ describe("OpenRouter image provider", () => {
     await expect(
       provider.generate({ prompt: "locked portrait prompt" }),
     ).rejects.toMatchObject({ code: "invalid_output", retryable: false });
+  });
+
+  it("rejects a stream that closes without the DONE event", async () => {
+    const provider = createOpenRouterImageProvider({
+      apiKey: "test-openrouter-key",
+      fetchImpl: vi
+        .fn()
+        .mockResolvedValue(imageResponse(PNG_BYTES, { includeDone: false })),
+    });
+
+    await expect(
+      provider.generate({ prompt: "locked portrait prompt" }),
+    ).rejects.toMatchObject({ code: "invalid_output", retryable: false });
+  });
+
+  it("maps a terminal SSE error without exposing provider details", async () => {
+    const provider = createOpenRouterImageProvider({
+      apiKey: "test-openrouter-key",
+      fetchImpl: vi.fn().mockResolvedValue(
+        imageResponse(PNG_BYTES, {
+          events: [
+            {
+              type: "error",
+              error: {
+                code: "server_error",
+                message: "secret upstream response",
+              },
+            },
+          ],
+        }),
+      ),
+    });
+
+    await expect(
+      provider.generate({ prompt: "secret locked portrait prompt" }),
+    ).rejects.toMatchObject({
+      code: "portrait_failed",
+      retryable: true,
+      message: "OpenRouter image generation is temporarily unavailable.",
+    });
   });
 
   it("rejects an image larger than 20 MiB", async () => {

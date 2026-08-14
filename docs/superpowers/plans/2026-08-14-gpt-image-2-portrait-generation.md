@@ -15,7 +15,7 @@
 - 图片模型固定为 `openai/gpt-image-2`。
 - 图片参数固定为 `quality: "high"`、`aspect_ratio: "3:4"`、`background: "opaque"`、`n: 1`。
 - 一次生成任务最多发出一次付费图片请求；付费请求发出后禁止自动重试。
-- OpenRouter 请求超时固定为 110 秒；`POST /api/npcs/generate` 的 `maxDuration` 固定为 180 秒。
+- OpenRouter 请求超时固定为 160 秒；图片请求使用 `stream: true` 保持长生成连接可用；`POST /api/npcs/generate` 的 `maxDuration` 固定为 180 秒。
 - 只接受 PNG、JPEG、WebP；解码后最大 20 MiB；必须检查文件签名。
 - 新任务统一使用 `mode = "full"`，新 NPC 的 `portraitUrl` 不允许为空。
 - 人物资料和图片只在数据库事务完成后一起返回；任何失败都不能暴露半成品 NPC。
@@ -34,7 +34,7 @@
 - Create `src/lib/generation/portrait-prompt.test.ts`: 提示词字段白名单与反刻板印象测试。
 - Modify `src/lib/npc/contracts.ts`: 导出 V2 人物资料 TypeScript 类型。
 - Modify `tests/fixtures/domain.ts`: 增加共享 V2 人物资料 fixture。
-- Create `src/lib/generation/openrouter-image-provider.ts`: OpenRouter 请求、超时、响应解码和文件验证。
+- Create `src/lib/generation/openrouter-image-provider.ts`: OpenRouter 请求、SSE 最终事件解析、超时、响应解码和文件验证。
 - Create `src/lib/generation/openrouter-image-provider.test.ts`: 请求参数、费用、错误和图片签名测试。
 - Create `src/lib/storage/portrait-blob-store.ts`: Vercel Blob 上传、命名和清理。
 - Create `src/lib/storage/portrait-blob-store.test.ts`: Blob 参数、路径隐私和删除测试。
@@ -266,12 +266,13 @@ Expected: FAIL，因为供应商模块还不存在。
 
 - [ ] **Step 4: 实现响应 Schema 和文件签名识别**
 
-响应只接受一个图片元素：
+流式响应只接受一个最终图片事件：
 
 ```ts
-const OpenRouterImageResponseSchema = z
+const OpenRouterCompletedEventSchema = z
   .object({
-    data: z.array(z.object({ b64_json: z.string().min(1) }).passthrough()),
+    type: z.literal("image_generation.completed"),
+    b64_json: z.string().min(1),
     usage: z
       .object({ cost: z.number().nonnegative().optional() })
       .passthrough()
@@ -282,7 +283,7 @@ const OpenRouterImageResponseSchema = z
 
 签名识别必须检查 PNG `89 50 4E 47 0D 0A 1A 0A`、JPEG `FF D8 FF`、WebP 的 `RIFF....WEBP`。先根据 Base64 长度保守估算，再解码并检查 `bytes.byteLength <= 20 * 1024 * 1024`。
 
-- [ ] **Step 5: 实现单次请求和 110 秒超时**
+- [ ] **Step 5: 实现单次流式请求和 160 秒超时**
 
 工厂接口固定为：
 
@@ -297,7 +298,7 @@ export function createOpenRouterImageProvider(options: {
 };
 ```
 
-默认 endpoint 为 `https://openrouter.ai/api/v1/images`，默认模型为 `openai/gpt-image-2`，默认 timeout 为 `110_000`。任何分支都不能循环调用 `fetch`，错误信息不能包含 API Key、完整上游响应或完整提示词。
+默认 endpoint 为 `https://openrouter.ai/api/v1/images`，默认模型为 `openai/gpt-image-2`，默认 timeout 为 `160_000`。请求设置 `stream: true`，只接受一个最终图片事件和 `[DONE]`；任何分支都不能循环调用 `fetch`，错误信息不能包含 API Key、完整上游响应或完整提示词。
 
 - [ ] **Step 6: 运行供应商测试和类型检查**
 

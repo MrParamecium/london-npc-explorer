@@ -10,16 +10,25 @@ import {
 
 const OPENROUTER_IMAGES_URL = "https://openrouter.ai/api/v1/images";
 const DEFAULT_MODEL = "openai/gpt-image-2";
-const DEFAULT_TIMEOUT_MS = 110_000;
+const DEFAULT_TIMEOUT_MS = 160_000;
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_SSE_LINE_CHARS = Math.ceil((MAX_IMAGE_BYTES / 3) * 4) + 65_536;
 
-const OpenRouterImageResponseSchema = z
+const OpenRouterCompletedEventSchema = z
   .object({
-    data: z.array(z.object({ b64_json: z.string().min(1) }).passthrough()),
+    type: z.literal("image_generation.completed"),
+    b64_json: z.string().min(1),
     usage: z
       .object({ cost: z.number().finite().nonnegative().optional() })
       .passthrough()
       .optional(),
+  })
+  .passthrough();
+
+const OpenRouterErrorEventSchema = z
+  .object({
+    type: z.literal("error"),
+    error: z.object({ code: z.string().optional() }).passthrough().optional(),
   })
   .passthrough();
 
@@ -67,6 +76,22 @@ function providerHttpError(status: number): PortraitGenerationError {
       ? "OpenRouter image generation is temporarily unavailable."
       : "OpenRouter rejected the image generation request.",
     retryable,
+  );
+}
+
+function providerStreamError(code?: string): PortraitGenerationError {
+  if (code === "timeout" || code === "provider_timeout") {
+    return new PortraitGenerationError(
+      "provider_timeout",
+      "OpenRouter image generation timed out.",
+      true,
+    );
+  }
+
+  return new PortraitGenerationError(
+    "portrait_failed",
+    "OpenRouter image generation is temporarily unavailable.",
+    true,
   );
 }
 
@@ -125,6 +150,79 @@ function detectImageFormat(bytes: Uint8Array): ImageFormat {
   throw invalidOutput();
 }
 
+async function readCompletedImage(response: Response) {
+  if (!response.body) throw invalidOutput();
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const completedEvents: Array<z.infer<typeof OpenRouterCompletedEventSchema>> =
+    [];
+  let buffer = "";
+  let done = false;
+
+  function processLine(rawLine: string) {
+    const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+    if (!line.startsWith("data:")) return;
+
+    const data = line.slice(5).trimStart();
+    if (data === "[DONE]") {
+      done = true;
+      return;
+    }
+
+    let event: unknown;
+    try {
+      event = JSON.parse(data);
+    } catch {
+      throw invalidOutput();
+    }
+
+    const completed = OpenRouterCompletedEventSchema.safeParse(event);
+    if (completed.success) {
+      completedEvents.push(completed.data);
+      if (completedEvents.length > 1) throw invalidOutput();
+      return;
+    }
+
+    const error = OpenRouterErrorEventSchema.safeParse(event);
+    if (error.success) {
+      throw providerStreamError(error.data.error?.code);
+    }
+
+    if (
+      typeof event === "object" &&
+      event !== null &&
+      "type" in event &&
+      event.type === "image_generation.partial_image"
+    ) {
+      return;
+    }
+
+    throw invalidOutput();
+  }
+
+  while (true) {
+    const chunk = await reader.read();
+    buffer += decoder.decode(chunk.value, { stream: !chunk.done });
+
+    let newlineIndex = buffer.indexOf("\n");
+    while (newlineIndex !== -1) {
+      const line = buffer.slice(0, newlineIndex);
+      buffer = buffer.slice(newlineIndex + 1);
+      processLine(line);
+      newlineIndex = buffer.indexOf("\n");
+    }
+
+    if (buffer.length > MAX_SSE_LINE_CHARS) throw invalidOutput();
+    if (chunk.done) break;
+  }
+
+  if (buffer.length > 0) processLine(buffer);
+  if (!done || completedEvents.length !== 1) throw invalidOutput();
+
+  return completedEvents[0]!;
+}
+
 export function createOpenRouterImageProvider(options: {
   apiKey: string;
   model?: string;
@@ -168,6 +266,7 @@ export function createOpenRouterImageProvider(options: {
             aspect_ratio: "3:4",
             background: "opaque",
             n: 1,
+            stream: true,
           }),
           signal: controller.signal,
         });
@@ -184,32 +283,15 @@ export function createOpenRouterImageProvider(options: {
           throw providerHttpError(response.status);
         }
 
-        let responseBody: unknown;
-        try {
-          responseBody = await response.json();
-        } catch {
-          throw invalidOutput();
-        }
-
-        const parsedResponse =
-          OpenRouterImageResponseSchema.safeParse(responseBody);
-        if (!parsedResponse.success || parsedResponse.data.data.length !== 1) {
-          throw invalidOutput();
-        }
-
-        const imagePayload = parsedResponse.data.data[0];
-        if (!imagePayload) {
-          throw invalidOutput();
-        }
-
-        const bytes = decodeBase64Image(imagePayload.b64_json);
+        const completed = await readCompletedImage(response);
+        const bytes = decodeBase64Image(completed.b64_json);
         const format = detectImageFormat(bytes);
 
         return {
           bytes,
           ...format,
           model,
-          costUsd: parsedResponse.data.usage?.cost ?? null,
+          costUsd: completed.usage?.cost ?? null,
         };
       } catch (error) {
         if (error instanceof PortraitGenerationError) {
