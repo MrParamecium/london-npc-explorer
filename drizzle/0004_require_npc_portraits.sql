@@ -1,0 +1,1 @@
+ALTER TABLE "npcs" ALTER COLUMN "portrait_url" SET NOT NULL;

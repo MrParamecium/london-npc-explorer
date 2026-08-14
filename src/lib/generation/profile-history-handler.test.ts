@@ -15,7 +15,8 @@ const npc = {
   versionSet: { datasetVersionIds: [] },
   fieldProvenance: {},
   narrative: "A fictional London resident is waiting near the station.",
-  portraitUrl: null,
+  portraitUrl:
+    "https://store.public.blob.vercel-storage.com/npc-portraits/history.png",
   visibleAt: new Date("2026-08-13T00:00:00.000Z"),
   createdAt: new Date("2026-08-13T00:00:00.000Z"),
   updatedAt: new Date("2026-08-13T00:00:00.000Z"),

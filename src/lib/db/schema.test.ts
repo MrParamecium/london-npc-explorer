@@ -77,7 +77,7 @@ describe("database schema", () => {
     expect(columns).not.toHaveProperty("photoUrl");
   });
 
-  it("stores profile-only generation mode, locked versions, and provenance", () => {
+  it("stores generation mode, locked versions, provenance, and required portraits", () => {
     const jobColumns = getTableColumns(generationJobs);
     const npcColumns = getTableColumns(npcs);
     const datasetColumns = getTableColumns(datasetVersions);
@@ -86,7 +86,16 @@ describe("database schema", () => {
     expect(jobColumns).toHaveProperty("versionSet");
     expect(npcColumns).toHaveProperty("fieldProvenance");
     expect(datasetColumns).toHaveProperty("compatibilitySetKey");
-    expect(npcColumns.portraitUrl.notNull).toBe(false);
+    expect(npcColumns.portraitUrl.notNull).toBe(true);
+
+    const migration = readFileSync(
+      resolve(process.cwd(), "drizzle/0004_require_npc_portraits.sql"),
+      "utf8",
+    );
+
+    expect(migration).toContain(
+      'ALTER TABLE "npcs" ALTER COLUMN "portrait_url" SET NOT NULL;',
+    );
   });
 
   it("keeps PostGIS and WGS84 in the initial migration", () => {

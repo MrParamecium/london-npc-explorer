@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { ids, validCurrentState } from "../../../tests/fixtures/domain";
-import { CompleteProfileNpcInputSchema } from "./profile-contracts";
+import { CompleteFullNpcInputSchema } from "./profile-contracts";
+import { PublicProfileNpcSchema } from "./public-profile-contracts";
 
-const validProfileOnlyInput = {
+const validFullInput = {
   jobId: ids.job,
   ownerId: "user_profile_only",
   locationId: ids.location,
@@ -34,13 +35,16 @@ const validProfileOnlyInput = {
     dailyLife: {
       education: "higher_education",
       commute: "not_applicable",
-      routine: "Walks to the library after breakfast and checks the local noticeboard.",
+      routine:
+        "Walks to the library after breakfast and checks the local noticeboard.",
     },
     appearance: {
-      presentation: "Comfortable layers, practical shoes, and a weatherproof coat.",
+      presentation:
+        "Comfortable layers, practical shoes, and a weatherproof coat.",
       clothing: ["navy raincoat"],
       possessions: ["canvas shopping bag"],
-      portraitDescriptor: "Natural documentary portrait in soft London daylight.",
+      portraitDescriptor:
+        "Natural documentary portrait in soft London daylight.",
     },
     character: {
       personalHistory: "Has lived in the borough for more than three decades.",
@@ -55,7 +59,7 @@ const validProfileOnlyInput = {
     probabilityEngineVersion: "london-conditional-v1",
     templateVersion: "london-fiction-v1",
     textModel: null,
-    imageModel: null,
+    imageModel: "openai/gpt-image-2",
   },
   fieldProvenance: {
     "/identity/age": {
@@ -70,18 +74,30 @@ const validProfileOnlyInput = {
   },
   narrative:
     "Rowan is taking a quiet morning walk through the neighbourhood before visiting the library.",
+  portraitUrl:
+    "https://store.public.blob.vercel-storage.com/npc-portraits/job-a.png",
+  estimatedCostUsd: 0.08,
 } as const;
 
-describe("CompleteProfileNpcInputSchema", () => {
-  it("accepts a profile-only non-worker branch", () => {
-    expect(
-      CompleteProfileNpcInputSchema.parse(validProfileOnlyInput),
-    ).toEqual(validProfileOnlyInput);
+describe("CompleteFullNpcInputSchema", () => {
+  it("accepts a full non-worker branch with a stored portrait and cost", () => {
+    expect(CompleteFullNpcInputSchema.parse(validFullInput)).toEqual(
+      validFullInput,
+    );
   });
 
-  it("rejects a profile-only input that still uses a legacy version set", () => {
-    const result = CompleteProfileNpcInputSchema.safeParse({
-      ...validProfileOnlyInput,
+  it("rejects a full input without a stored portrait", () => {
+    const result = CompleteFullNpcInputSchema.safeParse({
+      ...validFullInput,
+      portraitUrl: null,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a full input that still uses a legacy version set", () => {
+    const result = CompleteFullNpcInputSchema.safeParse({
+      ...validFullInput,
       versionSet: {
         datasetVersionIds: [ids.dataset],
         probabilityEngineVersion: "probability-v1",
@@ -92,5 +108,41 @@ describe("CompleteProfileNpcInputSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it.each([-0.01, 100.01, Number.POSITIVE_INFINITY])(
+    "rejects an invalid portrait cost of %s",
+    (estimatedCostUsd) => {
+      expect(
+        CompleteFullNpcInputSchema.safeParse({
+          ...validFullInput,
+          estimatedCostUsd,
+        }).success,
+      ).toBe(false);
+    },
+  );
+});
+
+describe("PublicProfileNpcSchema", () => {
+  const publicNpc = {
+    npcId: ids.npc,
+    locationId: ids.location,
+    seed: validFullInput.seed,
+    canonicalProfile: validFullInput.canonicalProfile,
+    currentState: validFullInput.currentState,
+    versionSet: validFullInput.versionSet,
+    fieldProvenance: validFullInput.fieldProvenance,
+    narrative: validFullInput.narrative,
+    portraitUrl: validFullInput.portraitUrl,
+    visibleAt: "2026-08-14T08:00:00.000Z",
+    createdAt: "2026-08-14T08:00:00.000Z",
+  };
+
+  it("requires a portrait URL for every publicly visible NPC", () => {
+    expect(PublicProfileNpcSchema.parse(publicNpc)).toEqual(publicNpc);
+    expect(
+      PublicProfileNpcSchema.safeParse({ ...publicNpc, portraitUrl: null })
+        .success,
+    ).toBe(false);
   });
 });

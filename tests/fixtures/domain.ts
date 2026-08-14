@@ -207,7 +207,8 @@ export const validCompletedGenerationJob = {
   retryCount: 0,
   estimatedCostUsd: 0.08,
   visibleNpcId: ids.npc,
-  portraitUrl: "https://example.com/portraits/am-okafor.webp",
+  portraitUrl:
+    "https://store.public.blob.vercel-storage.com/npc-portraits/job-fixture.webp",
   failure: null,
   createdAt: "2026-08-11T09:00:00.000Z",
   updatedAt: "2026-08-11T09:01:00.000Z",
@@ -223,6 +224,7 @@ export const validCompleteEncounter = {
   versionSet: validVersionSet,
   narrative:
     "Amara is on her way to prepare a museum programme for a visiting school group.",
-  portraitUrl: "https://example.com/portraits/am-okafor.webp",
+  portraitUrl:
+    "https://store.public.blob.vercel-storage.com/npc-portraits/job-fixture.webp",
   initialMemory: validMemory,
 } as const;

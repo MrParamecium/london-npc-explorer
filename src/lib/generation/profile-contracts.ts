@@ -10,19 +10,27 @@ import {
 
 import { GenerationSeedSchema } from "./contracts";
 
-export const CompleteProfileNpcInputSchema = z
-  .object({
-    jobId: EntityIdSchema,
-    ownerId: ClerkUserIdSchema,
-    locationId: EntityIdSchema,
-    seed: GenerationSeedSchema,
-    canonicalProfile: CanonicalNpcProfileV2Schema,
-    currentState: NpcCurrentStateSchema,
-    versionSet: NpcV2VersionSetSchema,
-    fieldProvenance: NpcFieldProvenanceMapSchema,
-    narrative: z.string().trim().min(20).max(8_000),
-  })
-  .strict();
+const CompleteNpcBaseSchema = z.object({
+  jobId: EntityIdSchema,
+  ownerId: ClerkUserIdSchema,
+  locationId: EntityIdSchema,
+  seed: GenerationSeedSchema,
+  canonicalProfile: CanonicalNpcProfileV2Schema,
+  currentState: NpcCurrentStateSchema,
+  versionSet: NpcV2VersionSetSchema,
+  fieldProvenance: NpcFieldProvenanceMapSchema,
+  narrative: z.string().trim().min(20).max(8_000),
+});
+
+export const CompleteFullNpcInputSchema = CompleteNpcBaseSchema.extend({
+  portraitUrl: z.string().url(),
+  estimatedCostUsd: z.number().finite().min(0).max(100),
+}).strict();
+
+export type CompleteFullNpcInput = z.input<typeof CompleteFullNpcInputSchema>;
+
+// Kept until the generation orchestrator migrates to full-mode persistence.
+export const CompleteProfileNpcInputSchema = CompleteNpcBaseSchema.strict();
 
 export type CompleteProfileNpcInput = z.input<
   typeof CompleteProfileNpcInputSchema

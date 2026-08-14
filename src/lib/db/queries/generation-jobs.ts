@@ -148,6 +148,30 @@ export async function markGenerationJobRunning(
   return job ?? null;
 }
 
+export async function markGenerationJobStage(
+  database: Database,
+  ownerId: string,
+  jobId: string,
+  stage: "profile" | "portrait" | "persistence",
+) {
+  const owner = ClerkUserIdSchema.parse(ownerId);
+  const id = EntityIdSchema.parse(jobId);
+  const [job] = await database
+    .update(generationJobs)
+    .set({ stage, updatedAt: new Date() })
+    .where(
+      and(
+        eq(generationJobs.id, id),
+        eq(generationJobs.ownerId, owner),
+        eq(generationJobs.status, "running"),
+        isNull(generationJobs.resultNpcId),
+      ),
+    )
+    .returning();
+
+  return job ?? null;
+}
+
 export async function markGenerationJobFailed(
   database: Database,
   ownerId: string,

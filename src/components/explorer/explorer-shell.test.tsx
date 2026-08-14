@@ -67,7 +67,7 @@ const fixtureNpc = {
     probabilityEngineVersion: "london-conditional-v1",
     templateVersion: "london-fiction-v1",
     textModel: null,
-    imageModel: null,
+    imageModel: "openai/gpt-image-2",
   },
   fieldProvenance: {
     "/identity/age": {
@@ -82,7 +82,8 @@ const fixtureNpc = {
   },
   narrative:
     "Rowan is taking a quiet morning walk through the neighbourhood before visiting the library.",
-  portraitUrl: null,
+  portraitUrl:
+    "https://store.public.blob.vercel-storage.com/npc-portraits/explorer-shell.png",
   visibleAt: "2026-08-13T00:00:00.000Z",
   createdAt: "2026-08-13T00:00:00.000Z",
 } as const;

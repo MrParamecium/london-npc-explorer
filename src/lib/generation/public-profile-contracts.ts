@@ -22,7 +22,7 @@ export const PublicProfileNpcSchema = z
     versionSet: NpcVersionSetSchema,
     fieldProvenance: NpcFieldProvenanceMapSchema,
     narrative: z.string().trim().min(20).max(8_000),
-    portraitUrl: z.string().url().nullable(),
+    portraitUrl: z.string().url(),
     visibleAt: IsoDateTimeSchema,
     createdAt: IsoDateTimeSchema,
   })

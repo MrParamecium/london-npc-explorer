@@ -337,7 +337,7 @@ export const npcs = pgTable(
       })
       .notNull(),
     narrative: text("narrative").notNull(),
-    portraitUrl: text("portrait_url"),
+    portraitUrl: text("portrait_url").notNull(),
     visibleAt: timestamp("visible_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
