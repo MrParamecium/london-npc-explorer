@@ -169,6 +169,9 @@ printing their values.
   URL, and recorded an image cost of approximately USD 0.2026 with no failure.
 - Vercel Blob contains exactly one 2.47 MB portrait. The profile and history
   render the same underlying Blob URL at their appropriate image widths.
+- Commit `7476027` deployed the real 2D Street View mode. A production smoke
+  test at the default London coordinate rendered the panorama and Google
+  controls without browser errors.
 
 ## Google Maps Configuration Already Completed
 
@@ -209,7 +212,8 @@ live services. Never paste their environment values into an issue or chat.
 
 1. Replace Clerk development keys with a production Clerk instance and verify
    the final domain allowlists.
-2. Deploy and smoke-test the real 2D Street View mode on the Vercel domain.
+2. Add production usage monitoring and budget alerts for Google Maps, Kimi,
+   OpenRouter, and Blob before inviting more users.
 3. Design the external game API only after the browser workflow is stable.
 
 ## Prompt for Another Codex Chat
