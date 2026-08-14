@@ -66,6 +66,7 @@ describe("Moonshot dialogue provider", () => {
     ]);
     expect(body.model).toBe("kimi-k3");
     expect(body.reasoning_effort).toBe("low");
+    expect(body.temperature).toBe(1);
     expect(body.response_format.json_schema.strict).toBe(true);
     expect(new Headers(init.headers).get("Authorization")).toBe(
       "Bearer fake-moonshot-key",

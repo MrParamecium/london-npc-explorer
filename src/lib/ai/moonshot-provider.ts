@@ -120,7 +120,7 @@ export class MoonshotDialogueProvider implements DialogueProvider {
           ],
           max_completion_tokens: 700,
           reasoning_effort: "low",
-          temperature: 0.7,
+          temperature: 1,
           response_format: {
             type: "json_schema",
             json_schema: {
