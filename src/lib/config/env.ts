@@ -17,6 +17,8 @@ const serverEnvSchema = z.object({
   GOOGLE_MAPS_SERVER_KEY: z.string().trim().min(1).optional(),
   OPENROUTER_API_KEY: z.string().trim().min(1).optional(),
   OPENROUTER_MODEL: z.string().trim().min(1).max(160).optional(),
+  MOONSHOT_API_KEY: z.string().trim().min(1).optional(),
+  MOONSHOT_MODEL: z.string().trim().min(1).max(160).optional(),
 });
 
 const parsedEnv = serverEnvSchema.parse({
@@ -30,6 +32,8 @@ const parsedEnv = serverEnvSchema.parse({
   GOOGLE_MAPS_SERVER_KEY: process.env.GOOGLE_MAPS_SERVER_KEY || undefined,
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || undefined,
   OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || undefined,
+  MOONSHOT_API_KEY: process.env.MOONSHOT_API_KEY || undefined,
+  MOONSHOT_MODEL: process.env.MOONSHOT_MODEL || undefined,
 });
 
 const providerMode = resolveProviderMode(parsedEnv.PROVIDER_MODE);
@@ -60,4 +64,6 @@ export const env = {
   googleMapsServerKey: googleMaps.serverKey,
   openRouterApiKey: parsedEnv.OPENROUTER_API_KEY,
   openRouterModel: parsedEnv.OPENROUTER_MODEL ?? "openai/gpt-4.1-mini",
+  moonshotApiKey: parsedEnv.MOONSHOT_API_KEY,
+  moonshotModel: parsedEnv.MOONSHOT_MODEL ?? "kimi-k3",
 };

@@ -3,7 +3,7 @@ import {
   getAuthenticatedUserId,
 } from "@/lib/auth/current-app-user";
 import { createChatHandler } from "@/lib/ai/chat-handler";
-import { createOpenRouterDialogueProvider } from "@/lib/ai/openrouter-provider";
+import { createMoonshotDialogueProvider } from "@/lib/ai/moonshot-provider";
 import { createDatabase } from "@/lib/db/client";
 import { getProfileNpcForOwner } from "@/lib/db/queries/profile-npcs";
 import { InMemoryRequestThrottle } from "@/lib/observability/request-throttle";
@@ -21,6 +21,6 @@ export const POST = createChatHandler({
   ensureUser: ensureCurrentAppUser,
   getNpc: (ownerId, npcId) =>
     getProfileNpcForOwner(createDatabase(), ownerId, npcId),
-  getProvider: createOpenRouterDialogueProvider,
+  getProvider: createMoonshotDialogueProvider,
   throttle,
 });
