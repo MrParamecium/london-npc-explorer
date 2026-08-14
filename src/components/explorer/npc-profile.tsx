@@ -71,11 +71,11 @@ export function NpcProfile({
             src={npc.portraitUrl}
             alt={`Fictional portrait of ${profile.identity.fictionalName}`}
             fill
-            sizes="(max-width: 440px) 84px, 94px"
+            sizes="(max-width: 440px) calc(100vw - 32px), (max-width: 820px) 360px, (max-width: 1080px) 272px, 360px"
             unoptimized={npc.portraitUrl.startsWith("data:")}
           />
         </div>
-        <div>
+        <div className="npc-identity-copy">
           <span className="profile-state">
             {isGenerating
               ? generationCopy[generationStage]

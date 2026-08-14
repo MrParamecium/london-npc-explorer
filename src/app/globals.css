@@ -1156,16 +1156,15 @@ textarea:focus-visible {
 
 .npc-identity {
   display: grid;
-  grid-template-columns: 94px 1fr;
-  align-items: end;
-  gap: 15px;
+  gap: 14px;
 }
 
 .npc-portrait {
   position: relative;
   display: block;
-  width: 94px;
+  width: min(100%, 360px);
   aspect-ratio: 3 / 4;
+  justify-self: center;
   overflow: hidden;
   border: 1px solid rgba(216, 82, 72, 0.38);
   border-radius: 6px;
@@ -1747,14 +1746,6 @@ textarea:focus-visible {
   .coordinate-plate {
     right: 9px;
     bottom: 28px;
-  }
-
-  .npc-identity {
-    grid-template-columns: 84px 1fr;
-  }
-
-  .npc-portrait {
-    width: 84px;
   }
 }
 

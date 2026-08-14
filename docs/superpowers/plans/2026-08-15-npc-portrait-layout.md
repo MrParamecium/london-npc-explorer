@@ -38,7 +38,7 @@
 - Consumes: `PublicProfileNpc.portraitUrl`, `canonicalProfile.identity.fictionalName`, and the existing `.npc-profile`, `.npc-identity`, and `.npc-portrait` hooks.
 - Produces: a `.npc-identity-copy` block following `.npc-portrait`; the portrait image keeps `fill`, the existing alt text, and a new responsive `sizes` value.
 
-- [ ] **Step 1: Extend the component test with the lead-image contract**
+- [x] **Step 1: Extend the component test with the lead-image contract**
 
 Replace the existing test body after the `image` query with assertions that lock the URL, responsive image hint, and DOM order:
 
@@ -56,17 +56,17 @@ expect(image.parentElement?.nextElementSibling).toHaveClass(
 );
 ```
 
-- [ ] **Step 2: Run the component test and verify the new contract fails**
+- [x] **Step 2: Run the component test and verify the new contract fails**
 
 Run:
 
 ```bash
-pnpm test -- src/components/explorer/npc-profile.test.tsx
+pnpm exec vitest run src/components/explorer/npc-profile.test.tsx
 ```
 
 Expected: FAIL because the current image still reports `84px`/`94px` sizes and its following identity block has no `npc-identity-copy` class.
 
-- [ ] **Step 3: Add rendered-size assertions to the existing end-to-end flow**
+- [x] **Step 3: Add rendered-size assertions to the existing end-to-end flow**
 
 After the generated `Amara Okafor` heading becomes visible, add:
 
@@ -90,17 +90,17 @@ expect(nameBox!.y).toBeGreaterThan(portraitBox!.y + portraitBox!.height);
 
 These assertions run in both configured projects: Desktop Chrome and Pixel 7.
 
-- [ ] **Step 4: Run the end-to-end test and verify the current thumbnail fails**
+- [x] **Step 4: Run the end-to-end test and verify the current thumbnail fails**
 
 Run:
 
 ```bash
-pnpm test:e2e -- --grep "locates, generates, and chats"
+pnpm test:e2e --grep "locates, generates, and chats"
 ```
 
 Expected: FAIL because the current desktop portrait is only `94px` wide and the name is beside it.
 
-- [ ] **Step 5: Restructure the identity markup and update the image hint**
+- [x] **Step 5: Restructure the identity markup and update the image hint**
 
 Change the identity block in `NpcProfile` to:
 
@@ -129,7 +129,7 @@ Change the identity block in `NpcProfile` to:
 
 Keep the portrait before the copy in source order so visual and assistive reading order agree.
 
-- [ ] **Step 6: Replace the thumbnail CSS with the responsive editorial layout**
+- [x] **Step 6: Replace the thumbnail CSS with the responsive editorial layout**
 
 Update the main rules to:
 
@@ -166,27 +166,27 @@ Remove the entire mobile override below `@media (max-width: 440px)`:
 
 Keep the current typography, border treatment, `object-fit: cover`, and all history portrait rules unchanged.
 
-- [ ] **Step 7: Run the focused component test**
+- [x] **Step 7: Run the focused component test**
 
 Run:
 
 ```bash
-pnpm test -- src/components/explorer/npc-profile.test.tsx
+pnpm exec vitest run src/components/explorer/npc-profile.test.tsx
 ```
 
 Expected: PASS.
 
-- [ ] **Step 8: Run the focused desktop and mobile end-to-end flow**
+- [x] **Step 8: Run the focused desktop and mobile end-to-end flow**
 
 Run:
 
 ```bash
-pnpm test:e2e -- --grep "locates, generates, and chats"
+pnpm test:e2e --grep "locates, generates, and chats"
 ```
 
 Expected: PASS in `desktop-chromium` and `mobile-chromium`; generated screenshots remain under `test-results/` for inspection.
 
-- [ ] **Step 9: Inspect both generated screenshots**
+- [x] **Step 9: Inspect both generated screenshots**
 
 Open the desktop and mobile `*-generated.png` files and confirm:
 
@@ -197,7 +197,7 @@ Open the desktop and mobile `*-generated.png` files and confirm:
 - the map and rails retain their existing widths;
 - history thumbnails are unchanged.
 
-- [ ] **Step 10: Run the full quality gate**
+- [x] **Step 10: Run the full quality gate**
 
 Run:
 
@@ -212,7 +212,7 @@ git diff --check
 
 Expected: every command exits `0`; lint has no new warning, all tests pass, and the production build completes.
 
-- [ ] **Step 11: Commit the implementation**
+- [x] **Step 11: Commit the implementation**
 
 ```bash
 git add src/components/explorer/npc-profile.tsx \

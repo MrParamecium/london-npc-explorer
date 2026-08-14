@@ -57,9 +57,19 @@ describe("NpcProfile", () => {
     const image = screen.getByRole("img", {
       name: "Fictional portrait of Amara Okafor",
     });
+    const name = screen.getByRole("heading", { name: "Amara Okafor" });
+
     expect(image).toHaveAttribute(
       "src",
       expect.stringContaining("npc-portraits"),
+    );
+    expect(image).toHaveAttribute(
+      "sizes",
+      "(max-width: 440px) calc(100vw - 32px), (max-width: 820px) 360px, (max-width: 1080px) 272px, 360px",
+    );
+    expect(image.parentElement?.nextElementSibling).toContainElement(name);
+    expect(image.parentElement?.nextElementSibling).toHaveClass(
+      "npc-identity-copy",
     );
   });
 });
