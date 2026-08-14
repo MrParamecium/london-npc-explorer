@@ -17,6 +17,8 @@ const serverEnvSchema = z.object({
   GOOGLE_MAPS_SERVER_KEY: z.string().trim().min(1).optional(),
   OPENROUTER_API_KEY: z.string().trim().min(1).optional(),
   OPENROUTER_MODEL: z.string().trim().min(1).max(160).optional(),
+  OPENROUTER_IMAGE_MODEL: z.string().trim().min(1).max(160).optional(),
+  BLOB_READ_WRITE_TOKEN: z.string().trim().min(1).optional(),
   MOONSHOT_API_KEY: z.string().trim().min(1).optional(),
   MOONSHOT_MODEL: z.string().trim().min(1).max(160).optional(),
 });
@@ -32,6 +34,8 @@ const parsedEnv = serverEnvSchema.parse({
   GOOGLE_MAPS_SERVER_KEY: process.env.GOOGLE_MAPS_SERVER_KEY || undefined,
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || undefined,
   OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || undefined,
+  OPENROUTER_IMAGE_MODEL: process.env.OPENROUTER_IMAGE_MODEL || undefined,
+  BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN || undefined,
   MOONSHOT_API_KEY: process.env.MOONSHOT_API_KEY || undefined,
   MOONSHOT_MODEL: process.env.MOONSHOT_MODEL || undefined,
 });
@@ -64,6 +68,9 @@ export const env = {
   googleMapsServerKey: googleMaps.serverKey,
   openRouterApiKey: parsedEnv.OPENROUTER_API_KEY,
   openRouterModel: parsedEnv.OPENROUTER_MODEL ?? "openai/gpt-4.1-mini",
+  openRouterImageModel:
+    parsedEnv.OPENROUTER_IMAGE_MODEL ?? "openai/gpt-image-2",
+  blobReadWriteToken: parsedEnv.BLOB_READ_WRITE_TOKEN,
   moonshotApiKey: parsedEnv.MOONSHOT_API_KEY,
   moonshotModel: parsedEnv.MOONSHOT_MODEL ?? "kimi-k3",
 };
