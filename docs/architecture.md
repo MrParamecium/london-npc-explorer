@@ -1,7 +1,8 @@
 # London NPC Atlas Architecture
 
-The location path is implemented. NPC sampling, portrait generation, persistent
-agent chat, and Street View remain later loops behind the same API boundary.
+The location path, statistically grounded NPC generation, portrait generation,
+and persistent agent chat are implemented. Street View remains a later loop
+behind the same API boundary.
 
 ```mermaid
 flowchart LR
@@ -22,14 +23,24 @@ flowchart LR
     MOCKLOC --> LOCAPI
     GOOGLE --> LOCAPI
 
-    UI -. "Authenticated next loop" .-> GENERATE["NPC generation orchestrator"]
-    GENERATE -.-> STATS["Versioned ONS / GLA / ASHE statistics"]
-    GENERATE -.-> DEEPSEEK["DeepSeek profile + dialogue"]
-    GENERATE -.-> IMAGE["OpenRouter + GPT Image 2 portrait"]
-    GENERATE -.-> DB["Neon NPC, job, chat, memory records"]
-    IMAGE -.-> BLOB["Vercel Blob"]
+    UI --> GENERATE["Authenticated NPC generation orchestrator"]
+    GENERATE --> STATS["Versioned ONS / GLA / ASHE statistics"]
+    STATS --> PROFILE["Locked statistical profile"]
+    PROFILE --> IMAGE["OpenRouter + GPT Image 2 portrait"]
+    IMAGE --> BLOB["Vercel Blob"]
+    BLOB --> DB["Atomic full NPC persistence"]
+    DB --> UI
+
+    UI --> CHAT["NPC chat API"]
+    CHAT --> KIMI["Kimi K3 official API"]
+    CHAT --> DB
     UI -. "Later scene loop" .-> STREET["Google Street View 2D / 360"]
 ```
 
-Solid arrows are working in the current loop. Dotted arrows are planned provider
-boundaries already represented in the V1 design and persistence model.
+Solid arrows are working in the current loop. The dotted Street View arrow is a
+planned provider boundary already represented in the V1 design.
+
+The portrait path makes one paid image request per NPC. The API validates one
+PNG, JPEG, or WebP image, stores it under an immutable non-PII Blob path, then
+commits the complete profile and portrait URL together. If persistence fails
+after upload, the orphaned Blob is deleted once.

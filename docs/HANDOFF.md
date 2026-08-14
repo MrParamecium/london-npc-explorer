@@ -19,10 +19,10 @@ before making project changes. It contains no credentials.
 
 - Repository: `https://github.com/MrParamecium/london-npc-explorer`
 - Default branch: `main`
-- Feature baseline before this handoff: `8dc7712`
-  (`feat: connect NPC dialogue UI`)
-- At verification time, the Local checkout and `origin/main` matched and the
-  tracked working tree was clean.
+- Current local feature baseline: `a44d4be`
+  (`fix: clean up database verification fixtures`).
+- At verification time, the local `main` checkout was 15 commits ahead of
+  `origin/main`; do not assume another worktree already contains these commits.
 - The Google Maps worktree at `$CODEX_HOME/worktrees/7371/zhe` is a detached,
   older checkout at `0246aca`. Its Google Maps commits are already ancestors of
   `main`; do not create a duplicate PR for them.
@@ -52,9 +52,10 @@ avoidance, WeChat login, and QQ login are intentionally out of scope.
 - Database: Neon PostgreSQL with PostGIS and Drizzle ORM.
 - Maps and local context: Google Maps JavaScript, Geocoding, and Places API
   (New).
-- NPC dialogue: OpenRouter through a server-only provider adapter. The model is
-  configurable with `OPENROUTER_MODEL`.
-- Portrait target: GPT Image 2, not implemented yet.
+- NPC dialogue: Kimi's official server API through a Moonshot provider adapter.
+  The model is configurable with `MOONSHOT_MODEL` and defaults to `kimi-k3`.
+- NPC portraits: GPT Image 2 through OpenRouter, stored in Vercel Blob. A full
+  NPC is revealed only after its profile and portrait are both persisted.
 - Dialogue length is not artificially capped in V1; provider budgets and
   account-level limits control spend.
 - Public API design is deferred until the browser product loop is stable.
@@ -72,13 +73,14 @@ avoidance, WeChat login, and QQ login are intentionally out of scope.
   fallback.
 - Deterministic, weighted NPC profile sampling.
 - Authenticated NPC generation, history, and profile-detail APIs.
-- OpenRouter dialogue provider, structured agent responses, chat API, and NPC
-  dialogue UI.
+- Structured agent responses, chat API, NPC dialogue UI, and the Kimi K3
+  official dialogue provider with server-only credentials.
+- One-shot GPT Image 2 portrait generation through OpenRouter, 3:4 portrait
+  storage in Vercel Blob, and atomic profile-plus-image reveal.
 - Request throttles on location, generation, and dialogue paths.
 
 ### Not Complete
 
-- Portrait generation, storage, and profile-plus-image reveal orchestration.
 - Real Street View scene integration.
 - 3D and 360-degree scene generation.
 - Production Vercel deployment verification and final-domain allowlists.
@@ -99,11 +101,12 @@ flowchart LR
     UI --> NPCAPI[NPC generation APIs]
     NPCAPI --> STATS[Versioned London statistics]
     NPCAPI --> SAMPLER[Deterministic weighted sampler]
-    NPCAPI --> DB[Neon profiles and encounters]
+    NPCAPI --> PORTRAIT[OpenRouter GPT Image 2]
+    PORTRAIT --> BLOB[Vercel Blob]
+    BLOB --> DB[Atomic full NPC persistence]
     UI --> CHATAPI[NPC chat API]
-    CHATAPI --> OPENROUTER[OpenRouter model]
+    CHATAPI --> KIMI[Kimi official API]
     CHATAPI --> DB
-    UI -. later .-> IMAGE[GPT Image 2 portrait]
     UI -. later .-> STREET[Street View / 3D / 360 scene]
 ```
 
@@ -136,21 +139,17 @@ NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY
 GOOGLE_MAPS_SERVER_KEY
 OPENROUTER_API_KEY
 OPENROUTER_MODEL
+OPENROUTER_IMAGE_MODEL
+MOONSHOT_API_KEY
+MOONSHOT_MODEL
+BLOB_READ_WRITE_TOKEN
 ```
 
-Important local-state mismatch as of this handoff:
-
-- The Local checkout `.env.local` contains database, Clerk, OpenRouter, and
-  Vercel-local values, but not the two Google Maps variables.
-- The older Google Maps worktree `.env.local` contains database, Clerk, and the
-  two Google Maps variables, but it was configured before the OpenRouter work.
-- `.env.local` is Git-ignored and `.worktreeinclude` is currently absent, so
-  existing and future worktrees do not automatically receive one consolidated
-  environment file.
-
-Consolidate secrets locally or in Vercel project settings without printing
-their values. Do not commit `.env.local`. If `.worktreeinclude` is introduced,
-review its secret-copying implications first.
+Vercel Production and Preview contain the Kimi, OpenRouter image, database,
+Clerk, Google Maps, and Blob variables. `PROVIDER_MODE` is `live` there. Local
+development can remain in mock mode. `.env.local` is Git-ignored and worktrees
+do not automatically share it, so verify each worktree's variable names without
+printing their values.
 
 ## Google Maps Configuration Already Completed
 
@@ -186,15 +185,13 @@ live services. Never paste their environment values into an issue or chat.
 
 ## Recommended Next Loops
 
-1. Consolidate Local environment variables securely, then verify one real
-   OpenRouter dialogue without exposing the key.
-2. Implement portrait generation and wait for both profile and portrait before
-   displaying the NPC.
-3. Add the real 2D Street View scene with Google attribution and explicit cost
+1. Deploy the portrait pipeline and perform exactly one paid production smoke
+   test without automatically retrying a sent image request.
+2. Add the real 2D Street View scene with Google attribution and explicit cost
    controls.
-4. Deploy to Vercel, configure production Clerk/Google allowlists, and run a
+3. Configure production Clerk/Google allowlists for the final domain and run a
    production smoke test.
-5. Design the external game API only after the browser workflow is stable.
+4. Design the external game API only after the browser workflow is stable.
 
 ## Prompt for Another Codex Chat
 
