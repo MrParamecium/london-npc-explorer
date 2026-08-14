@@ -4,24 +4,55 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Coordinates, NearbyPlace } from "@/lib/location/contracts";
 
+type GoogleMapsLoader = typeof import("@googlemaps/js-api-loader");
+
 type GoogleMapProps = {
   apiKey: string;
   coordinates: Coordinates;
+  loadMapsApi?: () => Promise<GoogleMapsLoader>;
+  mode: "map" | "street";
   nearbyPlaces: NearbyPlace[];
   onSelect: (coordinates: Coordinates) => void;
 };
 
 let configuredKey: string | null = null;
 
+type StreetViewMatch = {
+  heading: number;
+  pano: string;
+};
+
+type StreetViewState = "idle" | "loading" | "ready" | "unavailable" | "error";
+
+function coordinateCacheKey({ latitude, longitude }: Coordinates) {
+  return `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+}
+
+function getMapsErrorCode(error: unknown) {
+  if (!error || typeof error !== "object" || !("code" in error)) return null;
+  return typeof error.code === "string" ? error.code : null;
+}
+
+function loadDefaultMapsApi() {
+  return import("@googlemaps/js-api-loader");
+}
+
 export default function GoogleMap({
   apiKey,
   coordinates,
+  loadMapsApi = loadDefaultMapsApi,
+  mode,
   nearbyPlaces,
   onSelect,
 }: GoogleMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const streetViewContainerRef = useRef<HTMLDivElement>(null);
   const initialCoordinatesRef = useRef(coordinates);
   const mapRef = useRef<google.maps.Map | null>(null);
+  const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
+  const streetViewCacheRef = useRef<Map<string, StreetViewMatch | null>>(
+    new Map(),
+  );
   const markerConstructorRef = useRef<
     typeof google.maps.marker.AdvancedMarkerElement | null
   >(null);
@@ -29,6 +60,8 @@ export default function GoogleMap({
   const onSelectRef = useRef(onSelect);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [streetViewState, setStreetViewState] =
+    useState<StreetViewState>("idle");
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -40,8 +73,7 @@ export default function GoogleMap({
 
     async function initializeMap() {
       try {
-        const { importLibrary, setOptions } =
-          await import("@googlemaps/js-api-loader");
+        const { importLibrary, setOptions } = await loadMapsApi();
         if (!configuredKey) {
           setOptions({
             key: apiKey,
@@ -57,9 +89,9 @@ export default function GoogleMap({
           importLibrary("maps"),
           importLibrary("marker"),
         ]);
-        if (!active || !containerRef.current) return;
+        if (!active || !mapContainerRef.current) return;
 
-        const map = new Map(containerRef.current, {
+        const map = new Map(mapContainerRef.current, {
           center: {
             lat: initialCoordinatesRef.current.latitude,
             lng: initialCoordinatesRef.current.longitude,
@@ -99,9 +131,11 @@ export default function GoogleMap({
         marker.map = null;
       });
       markersRef.current = [];
+      panoramaRef.current?.setVisible(false);
+      panoramaRef.current = null;
       mapRef.current = null;
     };
-  }, [apiKey]);
+  }, [apiKey, loadMapsApi]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -133,22 +167,151 @@ export default function GoogleMap({
     markersRef.current = [selectedMarker, ...nearbyMarkers];
   }, [coordinates.latitude, coordinates.longitude, nearbyPlaces, ready]);
 
+  useEffect(() => {
+    if (mode !== "street") return;
+
+    let active = true;
+    const cacheKey = coordinateCacheKey(coordinates);
+
+    async function loadStreetView() {
+      const cached = streetViewCacheRef.current.get(cacheKey);
+      if (streetViewCacheRef.current.has(cacheKey) && cached === null) {
+        setStreetViewState("unavailable");
+        return;
+      }
+
+      setStreetViewState("loading");
+
+      try {
+        const { importLibrary, setOptions } = await loadMapsApi();
+        if (!configuredKey) {
+          setOptions({
+            key: apiKey,
+            v: "weekly",
+            language: "en",
+            region: "GB",
+            authReferrerPolicy: "origin",
+          });
+          configuredKey = apiKey;
+        }
+
+        const {
+          StreetViewPanorama,
+          StreetViewPreference,
+          StreetViewService,
+          StreetViewSource,
+        } = await importLibrary("streetView");
+        if (!active || !streetViewContainerRef.current) return;
+
+        let match = cached;
+        if (!match) {
+          const response = await new StreetViewService().getPanorama({
+            location: {
+              lat: coordinates.latitude,
+              lng: coordinates.longitude,
+            },
+            preference: StreetViewPreference.NEAREST,
+            radius: 100,
+            sources: [StreetViewSource.GOOGLE, StreetViewSource.OUTDOOR],
+          });
+          const pano = response.data.location?.pano;
+          if (!pano) {
+            streetViewCacheRef.current.set(cacheKey, null);
+            if (active) setStreetViewState("unavailable");
+            return;
+          }
+          match = {
+            pano,
+            heading: response.data.tiles.centerHeading,
+          };
+          streetViewCacheRef.current.set(cacheKey, match);
+        }
+
+        if (!active || !streetViewContainerRef.current) return;
+
+        if (panoramaRef.current) {
+          panoramaRef.current.setPano(match.pano);
+          panoramaRef.current.setPov({ heading: match.heading, pitch: 0 });
+          panoramaRef.current.setVisible(true);
+        } else {
+          panoramaRef.current = new StreetViewPanorama(
+            streetViewContainerRef.current,
+            {
+              addressControl: true,
+              clickToGo: true,
+              fullscreenControl: true,
+              linksControl: true,
+              motionTracking: false,
+              motionTrackingControl: false,
+              pano: match.pano,
+              panControl: true,
+              pov: { heading: match.heading, pitch: 0 },
+              scrollwheel: true,
+              showRoadLabels: true,
+              visible: true,
+              zoom: 1,
+              zoomControl: true,
+            },
+          );
+        }
+        setStreetViewState("ready");
+      } catch (error) {
+        if (!active) return;
+        if (getMapsErrorCode(error) === "ZERO_RESULTS") {
+          streetViewCacheRef.current.set(cacheKey, null);
+          setStreetViewState("unavailable");
+          return;
+        }
+        setStreetViewState("error");
+      }
+    }
+
+    void loadStreetView();
+    return () => {
+      active = false;
+    };
+  }, [apiKey, coordinates, loadMapsApi, mode]);
+
   return (
     <div className="google-map-shell">
       <div
-        className="google-map-host"
-        ref={containerRef}
+        className={`google-map-host ${mode === "map" ? "is-visible" : "is-hidden"}`}
+        ref={mapContainerRef}
+        aria-hidden={mode !== "map"}
         aria-label={`Interactive Google map at ${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}`}
       />
-      {!ready && !loadError ? (
+      <div
+        className={`google-map-host ${mode === "street" ? "is-visible" : "is-hidden"}`}
+        ref={streetViewContainerRef}
+        aria-hidden={mode !== "street"}
+        aria-label={`Interactive Google Street View near ${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}`}
+      />
+      {mode === "map" && !ready && !loadError ? (
         <p className="map-load-status" role="status">
           Loading map...
         </p>
       ) : null}
-      {loadError ? (
+      {mode === "map" && loadError ? (
         <p className="map-load-status map-load-error" role="alert">
           Google map is unavailable.
         </p>
+      ) : null}
+      {mode === "street" && streetViewState === "loading" ? (
+        <p className="map-load-status" role="status">
+          Finding nearby Street View...
+        </p>
+      ) : null}
+      {mode === "street" && streetViewState === "unavailable" ? (
+        <div className="street-view-empty" role="status">
+          <strong>No Street View within 100 metres</strong>
+          <span>Switch back to Map to keep exploring this coordinate.</span>
+        </div>
+      ) : null}
+      {mode === "street" && streetViewState === "error" ? (
+        <div className="street-view-empty" role="alert">
+          <strong>Street View could not load</strong>
+          <span>Switch back to Map and try this coordinate again later.</span>
+        </div>
       ) : null}
     </div>
   );

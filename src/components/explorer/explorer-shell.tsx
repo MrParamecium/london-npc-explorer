@@ -156,6 +156,7 @@ export function ExplorerShell({
   const [coordinates, setCoordinates] = useState(INITIAL_COORDINATES);
   const [coordinateError, setCoordinateError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [sceneMode, setSceneMode] = useState<"map" | "street">("map");
   const lastResumeRequestRef = useRef<string | null>(null);
   const location = useLocationResolution(locationFetch);
   const resolveLocation = location.resolve;
@@ -494,8 +495,22 @@ export function ExplorerShell({
               <h2 id="map-heading">{areaName}</h2>
             </div>
             <div className="map-mode" aria-label="Map mode">
-              <span className="active">Map</span>
-              <span>Street</span>
+              <button
+                type="button"
+                className={sceneMode === "map" ? "active" : undefined}
+                aria-pressed={sceneMode === "map"}
+                onClick={() => setSceneMode("map")}
+              >
+                Map
+              </button>
+              <button
+                type="button"
+                className={sceneMode === "street" ? "active" : undefined}
+                aria-pressed={sceneMode === "street"}
+                onClick={() => setSceneMode("street")}
+              >
+                Street
+              </button>
             </div>
           </div>
 
@@ -503,10 +518,11 @@ export function ExplorerShell({
             <GoogleMap
               apiKey={googleMapsBrowserKey}
               coordinates={coordinates}
+              mode={sceneMode}
               nearbyPlaces={nearbyPlaces}
               onSelect={handleMapSelect}
             />
-          ) : (
+          ) : sceneMode === "map" ? (
             <div
               className="map-canvas mock-map-canvas"
               style={mapStyle}
@@ -557,6 +573,13 @@ export function ExplorerShell({
                 </div>
               ) : null}
               <p className="map-attribution">Local preview / mock mode</p>
+            </div>
+          ) : (
+            <div className="google-map-shell">
+              <div className="street-view-empty" role="status">
+                <strong>Street View is unavailable in mock mode</strong>
+                <span>A Google Maps browser key is required.</span>
+              </div>
             </div>
           )}
         </section>

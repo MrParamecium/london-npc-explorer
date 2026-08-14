@@ -738,11 +738,15 @@ textarea:focus-visible {
   background: rgba(39, 89, 199, 0.035);
 }
 
-.map-mode span {
+.map-mode button {
   min-width: 54px;
   padding: 6px 9px;
+  border: 0;
   border-radius: 4px;
+  background: transparent;
   color: var(--text-faint);
+  cursor: pointer;
+  font: inherit;
   font-size: 11px;
   text-align: center;
 }
@@ -750,6 +754,11 @@ textarea:focus-visible {
 .map-mode .active {
   background: rgba(39, 89, 199, 0.12);
   color: var(--mint);
+}
+
+.map-mode button:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 1px;
 }
 
 .map-canvas {
@@ -780,6 +789,39 @@ textarea:focus-visible {
 .google-map-host {
   position: absolute;
   inset: 0;
+}
+
+.google-map-host.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.google-map-host.is-visible {
+  visibility: visible;
+}
+
+.street-view-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-content: center;
+  gap: 7px;
+  padding: 28px;
+  background: #e5ebf1;
+  color: var(--text);
+  text-align: center;
+}
+
+.street-view-empty strong {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.street-view-empty span {
+  color: var(--text-muted);
+  font-size: 11px;
 }
 
 .map-load-status,
@@ -1730,7 +1772,7 @@ textarea:focus-visible {
     align-items: flex-start;
   }
 
-  .map-mode span {
+  .map-mode button {
     min-width: 44px;
   }
 

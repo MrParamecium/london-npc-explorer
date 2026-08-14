@@ -1,6 +1,6 @@
 # London NPC Atlas Handoff
 
-Last verified: 2026-08-14
+Last verified: 2026-08-15
 
 This document is the shared context for new Codex chats and worktrees. Read it
 before making project changes. It contains no credentials.
@@ -19,10 +19,9 @@ before making project changes. It contains no credentials.
 
 - Repository: `https://github.com/MrParamecium/london-npc-explorer`
 - Default branch: `main`
-- Current local feature baseline: `aa42f47`
-  (`fix: stream OpenRouter portrait generation`).
-- At verification time, the local `main` checkout was ahead of `origin/main`;
-  do not assume another worktree already contains these commits.
+- At the start of the Street View loop, local `main` matched `origin/main` at
+  `c0014fc` (`feat: enlarge NPC portrait presentation`). Verify the current
+  commit before coordinating another worktree.
 - The Google Maps worktree at `$CODEX_HOME/worktrees/7371/zhe` is a detached,
   older checkout at `0246aca`. Its Google Maps commits are already ancestors of
   `main`; do not create a duplicate PR for them.
@@ -67,6 +66,9 @@ avoidance, WeChat login, and QQ login are intentionally out of scope.
 - Clerk authentication and authenticated user synchronization.
 - Greater London coordinate validation with official PostGIS boundaries.
 - Google Maps browser rendering with selected-point and nearby-place markers.
+- Real Google Street View mode with nearest official outdoor panorama lookup
+  within 100 metres, per-coordinate session caching, Google attribution, and a
+  clear no-coverage fallback.
 - Google Geocoding v4 and Places API (New) server adapters.
 - Mock provider mode for development without live external calls.
 - Versioned London statistics ingestion and metric-specific geographic
@@ -82,7 +84,6 @@ avoidance, WeChat login, and QQ login are intentionally out of scope.
 
 ### Not Complete
 
-- Real Street View scene integration.
 - 3D and 360-degree scene generation.
 - Clerk production instance/keys and final launch allowlist review. The current
   production page still reports Clerk development keys.
@@ -109,7 +110,8 @@ flowchart LR
     UI --> CHATAPI[NPC chat API]
     CHATAPI --> KIMI[Kimi official API]
     CHATAPI --> DB
-    UI -. later .-> STREET[Street View / 3D / 360 scene]
+    UI --> STREET[Google Street View 2D scene]
+    UI -. later .-> SCENE3D[3D / 360 scene]
 ```
 
 ## Data Policy
@@ -179,6 +181,9 @@ printing their values.
 - The live verification resolved a known London point to St Paul's, returned
   City of London LSOA/ward/borough context, found 10 nearby places, and rendered
   the interactive map without browser errors.
+- The local Street View verification found and rendered an official outdoor
+  panorama within 100 metres of the default London coordinate. Rotation, zoom,
+  fullscreen controls, and Google attribution were present.
 - Add the final Vercel domain to the browser-key referrer allowlist before
   production launch.
 
@@ -204,8 +209,7 @@ live services. Never paste their environment values into an issue or chat.
 
 1. Replace Clerk development keys with a production Clerk instance and verify
    the final domain allowlists.
-2. Add the real 2D Street View scene with Google attribution and explicit cost
-   controls.
+2. Deploy and smoke-test the real 2D Street View mode on the Vercel domain.
 3. Design the external game API only after the browser workflow is stable.
 
 ## Prompt for Another Codex Chat

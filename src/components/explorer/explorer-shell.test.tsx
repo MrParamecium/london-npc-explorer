@@ -140,6 +140,28 @@ describe("ExplorerShell", () => {
     expect(screen.getByRole("button", { name: "Generate NPC" })).toBeEnabled();
   });
 
+  it("switches between map and Street View modes", async () => {
+    const user = userEvent.setup();
+    render(<ExplorerShell providerMode="mock" />);
+
+    const mapButton = screen.getByRole("button", { name: "Map" });
+    const streetButton = screen.getByRole("button", { name: "Street" });
+    expect(mapButton).toHaveAttribute("aria-pressed", "true");
+    expect(streetButton).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(streetButton);
+
+    expect(streetButton).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByText("Street View is unavailable in mock mode"),
+    ).toBeInTheDocument();
+
+    await user.click(mapButton);
+
+    expect(mapButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText(/Clickable map preview/)).toBeInTheDocument();
+  });
+
   it("rejects a coordinate outside Greater London", async () => {
     const user = userEvent.setup();
     const unsupported = {
