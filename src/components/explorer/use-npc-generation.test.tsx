@@ -94,4 +94,38 @@ describe("useNpcGeneration", () => {
 
     vi.useRealTimers();
   });
+
+  it("uses a fresh idempotency key for a manual retry", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "portrait_failed",
+            message: "Portrait generation failed.",
+            retryable: true,
+          },
+        }),
+        { status: 503, headers: { "content-type": "application/json" } },
+      ),
+    );
+    const { result } = renderHook(() => useNpcGeneration(fetchImpl));
+
+    await act(async () => {
+      await result.current.generate(coordinates);
+    });
+    expect(result.current.state).toBe("error");
+
+    await act(async () => {
+      await result.current.generate(coordinates);
+    });
+
+    const firstBody = JSON.parse(
+      String(fetchImpl.mock.calls[0]?.[1]?.body),
+    ) as { idempotencyKey: string };
+    const secondBody = JSON.parse(
+      String(fetchImpl.mock.calls[1]?.[1]?.body),
+    ) as { idempotencyKey: string };
+    expect(secondBody.idempotencyKey).not.toBe(firstBody.idempotencyKey);
+    expect(result.current.npc).toBeNull();
+  });
 });

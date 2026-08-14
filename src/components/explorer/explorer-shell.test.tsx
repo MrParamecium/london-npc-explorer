@@ -277,6 +277,30 @@ describe("ExplorerShell", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("offers a fresh manual retry after portrait generation fails", async () => {
+    const user = userEvent.setup();
+    const npcFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse(
+        {
+          error: {
+            code: "portrait_failed",
+            message: "Portrait generation failed.",
+            retryable: true,
+          },
+        },
+        503,
+      ),
+    );
+    render(<ExplorerShell providerMode="mock" npcFetch={npcFetch} />);
+
+    await user.click(screen.getByRole("button", { name: "Generate NPC" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Generate again" }),
+    );
+
+    expect(npcFetch).toHaveBeenCalledTimes(2);
+  });
+
   it("restores the exact coordinate and generates once after sign-in", async () => {
     const clearResumeRequest = vi.fn();
 

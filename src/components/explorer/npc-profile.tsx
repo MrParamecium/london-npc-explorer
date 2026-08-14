@@ -13,6 +13,14 @@ import Image from "next/image";
 
 import type { PublicProfileNpc } from "@/lib/generation/public-profile-contracts";
 
+import type { NpcGenerationStage } from "./use-npc-generation";
+
+const generationCopy: Record<NpcGenerationStage, string> = {
+  profile: "Sampling local profile",
+  portrait: "Generating portrait",
+  persistence: "Saving encounter",
+};
+
 function humanize(value: string | null) {
   return value ? value.replaceAll("_", " ") : "Not applicable";
 }
@@ -45,7 +53,7 @@ export function NpcProfile({
 }: {
   npc: PublicProfileNpc;
   isGenerating: boolean;
-  generationStage: string;
+  generationStage: NpcGenerationStage;
   generationError: string | null;
   onGenerateAnother: () => void;
 }) {
@@ -70,7 +78,7 @@ export function NpcProfile({
         <div>
           <span className="profile-state">
             {isGenerating
-              ? `Sampling / ${generationStage}`
+              ? generationCopy[generationStage]
               : "Fictional local sample"}
           </span>
           <h3>{profile.identity.fictionalName}</h3>

@@ -280,6 +280,7 @@ export function ExplorerShell({
   }
 
   const isGenerating = npcGeneration.state === "generating";
+  const generationFailed = npcGeneration.state === "error";
   const isReady = npcGeneration.npc !== null;
   const isAuthenticationPending =
     authentication?.status === "loading" ||
@@ -606,7 +607,9 @@ export function ExplorerShell({
                       ? "Building profile"
                       : isAuthenticationPending
                         ? "Connecting account"
-                        : "Generate NPC"
+                        : generationFailed
+                          ? "Generate again"
+                          : "Generate NPC"
                 }
               >
                 {isGenerating || isAuthenticationPending ? (
@@ -620,7 +623,9 @@ export function ExplorerShell({
                     ? "Building profile"
                     : isAuthenticationPending
                       ? "Connecting account"
-                      : "Generate NPC"}
+                      : generationFailed
+                        ? "Generate again"
+                        : "Generate NPC"}
               </button>
               {authentication?.status === "synchronizing" ? (
                 <p className="auth-inline-status" role="status">
