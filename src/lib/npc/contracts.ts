@@ -252,6 +252,7 @@ export const NpcCurrentStateSchema = z
   .strict();
 
 export type CanonicalNpcProfile = z.infer<typeof CanonicalNpcProfileSchema>;
+export type CanonicalNpcProfileV2 = z.infer<typeof CanonicalNpcProfileV2Schema>;
 export type NpcVersionSet = z.infer<typeof NpcVersionSetSchema>;
 export type NpcCurrentState = z.infer<typeof NpcCurrentStateSchema>;
 export type NpcFieldProvenance = z.infer<typeof NpcFieldProvenanceSchema>;

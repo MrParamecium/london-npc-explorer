@@ -114,6 +114,50 @@ export const validCanonicalProfile = {
   },
 } as const;
 
+export const validCanonicalProfileV2 = {
+  schemaVersion: 2,
+  identity: {
+    fictionalName: "Amara Okafor",
+    age: 31,
+    ageBand: "25-34",
+    pronouns: "she/her",
+    statisticalSex: "female",
+    ethnicGroup: "Black British, Nigerian heritage",
+  },
+  household: {
+    householdType: "shared_private_rental",
+    housingTenure: "private_rent",
+  },
+  work: {
+    branch: "employee",
+    economicActivity: "employed",
+    occupationCode: "SOC-2452",
+    occupationTitle: "Museum programme coordinator",
+    employerType: "charity",
+    workPattern: "full_time",
+    annualIncomeBand: "GBP 38k-44k",
+  },
+  dailyLife: {
+    education: "undergraduate_degree",
+    commute: "bus_and_walk",
+    routine: "Coordinates school visits and evening community workshops.",
+  },
+  appearance: {
+    presentation: "Practical, neat, slightly rain-marked after commuting.",
+    clothing: ["olive field jacket", "navy knit", "worn trainers"],
+    possessions: ["leather tote", "staff lanyard"],
+    portraitDescriptor:
+      "Documentary waist-up portrait in natural overcast London light.",
+  },
+  character: {
+    personalHistory:
+      "PRIVATE-STORY-MARKER: moved across north London for work and shared housing.",
+    values: ["public access", "reliability"],
+    speechStyle: "PRIVATE-SPEECH-MARKER: warm, concise, and attentive to time.",
+    boundaries: ["does not disclose visitor details"],
+  },
+} as const;
+
 export const validCurrentState = {
   currentTask: "Preparing a school group for the next gallery session.",
   reasonForLocation: "Walking from the bus stop to the museum entrance.",
