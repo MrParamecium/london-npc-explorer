@@ -162,8 +162,8 @@ printing their values.
 ## Production Deployment Status
 
 - Production alias: `https://london-npc-explorer.vercel.app/`.
-- Latest production deployment: GitHub deployment `5916597016` (success),
-  built from `b74b8c0` at
+- The durable-dialogue feature first deployed as GitHub deployment
+  `5916597016` (success), built from `b74b8c0` at
   `https://london-npc-explorer-4ntgyhr7e-mrparameciums-projects.vercel.app`.
 - The single authorized live smoke request against the previous deployment
   reached the portrait stage and failed with a safe `provider_timeout` after an
