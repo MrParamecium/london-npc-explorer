@@ -162,8 +162,9 @@ printing their values.
 ## Production Deployment Status
 
 - Production alias: `https://london-npc-explorer.vercel.app/`.
-- Latest deployment: `dpl_925bWZqsZ7Zzqt8CeNT3LW4k2uE4` (READY), with the
-  streaming portrait fix.
+- Latest production deployment: GitHub deployment `5916597016` (success),
+  built from `b74b8c0` at
+  `https://london-npc-explorer-4ntgyhr7e-mrparameciums-projects.vercel.app`.
 - The single authorized live smoke request against the previous deployment
   reached the portrait stage and failed with a safe `provider_timeout` after an
   upstream timeout. It created no NPC and left the Blob store at 0 files.
@@ -180,6 +181,9 @@ printing their values.
   ESLint with zero errors, Drizzle schema validation, formatting, secret scan,
   and a Next.js 16 production build. A signed-out local GET smoke test returned
   the expected cache-disabled `401` without invoking Kimi.
+- Production smoke testing opened an existing owned NPC, loaded its empty
+  durable transcript, and rendered the `Saved` state with an enabled composer.
+  No message was sent, so this deployment smoke test incurred no Kimi usage.
 
 ## Google Maps Configuration Already Completed
 
