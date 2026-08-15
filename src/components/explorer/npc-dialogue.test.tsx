@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -23,6 +23,7 @@ const completion = {
     },
   },
 };
+const emptyHistory = { messages: [] };
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -44,7 +45,8 @@ describe("NpcDialogue", () => {
     const user = userEvent.setup();
     const fetchImpl = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(jsonResponse(completion));
+      .mockResolvedValueOnce(jsonResponse(emptyHistory))
+      .mockResolvedValueOnce(jsonResponse(completion));
 
     render(
       <NpcDialogue
@@ -58,6 +60,8 @@ describe("NpcDialogue", () => {
       screen.getByRole("heading", { name: "Talk with Rowan" }),
     ).toBeInTheDocument();
     const composer = screen.getByLabelText("Message Rowan Ellis");
+    await waitFor(() => expect(composer).toBeEnabled());
+    expect(screen.getByText("Saved")).toBeInTheDocument();
     await user.type(composer, "Are you waiting long?");
     await user.click(screen.getByRole("button", { name: "Send message" }));
 
@@ -75,18 +79,21 @@ describe("NpcDialogue", () => {
 
   it("retains the exact draft after a safe route failure", async () => {
     const user = userEvent.setup();
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      jsonResponse(
-        {
-          error: {
-            code: "provider_timeout",
-            message: "The NPC took too long to respond. Try again.",
-            retryable: true,
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse(emptyHistory))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: {
+              code: "provider_timeout",
+              message: "The NPC took too long to respond. Try again.",
+              retryable: true,
+            },
           },
-        },
-        504,
-      ),
-    );
+          504,
+        ),
+      );
 
     render(
       <NpcDialogue
@@ -97,6 +104,7 @@ describe("NpcDialogue", () => {
     );
 
     const composer = screen.getByLabelText("Message Rowan Ellis");
+    await waitFor(() => expect(composer).toBeEnabled());
     await user.type(composer, "  Please try that again.  ");
     await user.click(screen.getByRole("button", { name: "Send message" }));
 
@@ -109,7 +117,10 @@ describe("NpcDialogue", () => {
   it("disables the composer while the NPC reply is pending", async () => {
     const user = userEvent.setup();
     const pending = deferred<Response>();
-    const fetchImpl = vi.fn<typeof fetch>().mockReturnValue(pending.promise);
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse(emptyHistory))
+      .mockReturnValueOnce(pending.promise);
 
     render(
       <NpcDialogue
@@ -120,6 +131,7 @@ describe("NpcDialogue", () => {
     );
 
     const composer = screen.getByLabelText("Message Rowan Ellis");
+    await waitFor(() => expect(composer).toBeEnabled());
     await user.type(composer, "Are you waiting long?");
     await user.click(screen.getByRole("button", { name: "Send message" }));
 
@@ -137,7 +149,8 @@ describe("NpcDialogue", () => {
     const user = userEvent.setup();
     const fetchImpl = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(jsonResponse(completion));
+      .mockResolvedValueOnce(jsonResponse(emptyHistory))
+      .mockResolvedValueOnce(jsonResponse(completion));
 
     render(
       <NpcDialogue
@@ -148,15 +161,16 @@ describe("NpcDialogue", () => {
     );
 
     const composer = screen.getByLabelText("Message Rowan Ellis");
+    await waitFor(() => expect(composer).toBeEnabled());
     await user.type(composer, "First line{shift>}{enter}{/shift}Second line");
 
     expect(composer).toHaveValue("First line\nSecond line");
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
 
     await user.type(composer, "{enter}");
 
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toEqual({
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({
       messages: [{ role: "user", content: "First line\nSecond line" }],
     });
   });

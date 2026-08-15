@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { ChatRequestSchema, ChatResponseSchema } from "./contracts";
+import {
+  ChatRequestSchema,
+  ChatResponseSchema,
+  DialogueHistoryResponseSchema,
+} from "./contracts";
 
 describe("AI dialogue contracts", () => {
   it("accepts a bounded multi-turn conversation ending with the user", () => {
@@ -52,5 +56,42 @@ describe("AI dialogue contracts", () => {
         },
       }).metadata.usage.totalTokens,
     ).toBe(369);
+  });
+
+  it("accepts persisted user and assistant turns", () => {
+    expect(
+      DialogueHistoryResponseSchema.parse({
+        messages: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            role: "user",
+            content: "Do you come here often?",
+          },
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            role: "assistant",
+            content: "Most weekday mornings.",
+            action: "Maya nods towards the station entrance.",
+            emotion: "quietly_amused",
+          },
+        ],
+      }).messages,
+    ).toHaveLength(2);
+  });
+
+  it("rejects an incomplete persisted assistant turn", () => {
+    expect(
+      DialogueHistoryResponseSchema.safeParse({
+        messages: [
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            role: "assistant",
+            content: "Most weekday mornings.",
+            action: "",
+            emotion: "Quietly amused",
+          },
+        ],
+      }).success,
+    ).toBe(false);
   });
 });

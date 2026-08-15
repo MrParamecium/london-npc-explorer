@@ -58,6 +58,38 @@ export const ChatResponseSchema = z
   })
   .strict();
 
+export const DialogueHistoryTurnSchema = z.discriminatedUnion("role", [
+  z
+    .object({
+      id: z.string().uuid(),
+      role: z.literal("user"),
+      content: z.string().trim().min(1).max(4_000),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().uuid(),
+      role: z.literal("assistant"),
+      content: z.string().trim().min(1).max(2_000),
+      action: z.string().trim().min(1).max(1_000),
+      emotion: z
+        .string()
+        .regex(/^[a-z]+(?:_[a-z]+)*$/)
+        .max(80),
+    })
+    .strict(),
+]);
+
+export const DialogueHistoryResponseSchema = z
+  .object({
+    messages: z.array(DialogueHistoryTurnSchema).max(40),
+  })
+  .strict();
+
 export type DialogueMessage = z.infer<typeof DialogueMessageSchema>;
 export type DialogueUsage = z.infer<typeof DialogueUsageSchema>;
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;
+export type DialogueHistoryTurn = z.infer<typeof DialogueHistoryTurnSchema>;
+export type DialogueHistoryResponse = z.infer<
+  typeof DialogueHistoryResponseSchema
+>;

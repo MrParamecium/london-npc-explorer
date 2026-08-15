@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -225,7 +225,8 @@ describe("ExplorerShell", () => {
     );
     const dialogueFetch = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(jsonResponse(dialogueResponse));
+      .mockResolvedValueOnce(jsonResponse({ messages: [] }))
+      .mockResolvedValueOnce(jsonResponse(dialogueResponse));
     render(
       <ExplorerShell
         providerMode="mock"
@@ -256,10 +257,9 @@ describe("ExplorerShell", () => {
       expect.objectContaining({ method: "POST" }),
     );
 
-    await user.type(
-      screen.getByLabelText("Message Rowan Ellis"),
-      "Are you waiting long?",
-    );
+    const composer = screen.getByLabelText("Message Rowan Ellis");
+    await waitFor(() => expect(composer).toBeEnabled());
+    await user.type(composer, "Are you waiting long?");
     await user.click(screen.getByRole("button", { name: "Send message" }));
 
     expect(dialogueFetch).toHaveBeenCalledWith(

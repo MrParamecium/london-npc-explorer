@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, type KeyboardEvent, useState } from "react";
-import { LoaderCircle, SendHorizontal } from "lucide-react";
+import { CloudCheck, LoaderCircle, SendHorizontal } from "lucide-react";
 
 import { useNpcDialogue } from "./use-npc-dialogue";
 
@@ -24,12 +24,14 @@ export function NpcDialogue({
 }) {
   const [draft, setDraft] = useState("");
   const { turns, status, error, send } = useNpcDialogue(npcId, fetchImpl);
+  const isLoading = status === "loading";
   const isSending = status === "sending";
+  const isBusy = isLoading || isSending;
   const givenName = firstName(npcName);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!draft.trim() || isSending) return;
+    if (!draft.trim() || isBusy) return;
 
     if (await send(draft)) setDraft("");
   }
@@ -48,11 +50,23 @@ export function NpcDialogue({
           <span className="eyebrow">Live encounter</span>
           <h3 id="dialogue-title">Talk with {givenName}</h3>
         </div>
-        <span className="dialogue-page-state">Page only</span>
+        <span
+          className="dialogue-page-state"
+          title="Conversation is saved to your account"
+        >
+          {isLoading ? (
+            <LoaderCircle className="spin" size={11} />
+          ) : (
+            <CloudCheck size={11} />
+          )}
+          {isLoading ? "Loading" : "Saved"}
+        </span>
       </div>
 
       <div className="dialogue-log" aria-live="polite">
-        {turns.length === 0 ? (
+        {isLoading ? (
+          <p className="dialogue-empty">Loading saved conversation...</p>
+        ) : turns.length === 0 ? (
           <p className="dialogue-empty">
             Start with what you notice, or ask {givenName} what brings them
             here.
@@ -96,13 +110,13 @@ export function NpcDialogue({
           placeholder={`Say something to ${givenName}...`}
           maxLength={4_000}
           rows={3}
-          disabled={isSending}
+          disabled={isBusy}
         />
         <button
           type="submit"
           aria-label="Send message"
           title="Send message"
-          disabled={isSending || !draft.trim()}
+          disabled={isBusy || !draft.trim()}
         >
           {isSending ? (
             <LoaderCircle className="spin" size={17} />
@@ -113,7 +127,9 @@ export function NpcDialogue({
       </form>
 
       <div className="dialogue-status" aria-live="polite">
-        {isSending ? (
+        {isLoading ? (
+          <p role="status">Loading saved conversation...</p>
+        ) : isSending ? (
           <p role="status">{givenName} is responding...</p>
         ) : error ? (
           <p className="form-error" role="alert">

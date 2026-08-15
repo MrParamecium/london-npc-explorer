@@ -19,8 +19,8 @@ before making project changes. It contains no credentials.
 
 - Repository: `https://github.com/MrParamecium/london-npc-explorer`
 - Default branch: `main`
-- At the start of the Street View loop, local `main` matched `origin/main` at
-  `c0014fc` (`feat: enlarge NPC portrait presentation`). Verify the current
+- At the start of the durable-dialogue loop, local `main` matched `origin/main`
+  at `dcba8ee` (`docs: record Street View deployment`). Verify the current
   commit before coordinating another worktree.
 - The Google Maps worktree at `$CODEX_HOME/worktrees/7371/zhe` is a detached,
   older checkout at `0246aca`. Its Google Maps commits are already ancestors of
@@ -55,8 +55,10 @@ avoidance, WeChat login, and QQ login are intentionally out of scope.
   The model is configurable with `MOONSHOT_MODEL` and defaults to `kimi-k3`.
 - NPC portraits: GPT Image 2 through OpenRouter, stored in Vercel Blob. A full
   NPC is revealed only after its profile and portrait are both persisted.
-- Dialogue length is not artificially capped in V1; provider budgets and
-  account-level limits control spend.
+- The saved dialogue record is not artificially capped in V1. The browser and
+  each provider request use the latest 40 turns so UI rendering and prompt
+  costs remain bounded; provider budgets and account-level limits control
+  spend.
 - Public API design is deferred until the browser product loop is stable.
 
 ## Current Implementation on `main`
@@ -77,6 +79,10 @@ avoidance, WeChat login, and QQ login are intentionally out of scope.
 - Authenticated NPC generation, history, and profile-detail APIs.
 - Structured agent responses, chat API, NPC dialogue UI, and the Kimi K3
   official dialogue provider with server-only credentials.
+- Owner-scoped durable conversations that restore after refresh. The server
+  builds Kimi context from the latest saved messages, persists both sides of a
+  successful exchange atomically, versions optional NPC memory summaries, and
+  stores validated provider/model/token/cost metadata with the NPC reply.
 - One-shot GPT Image 2 portrait generation through OpenRouter, 3:4 portrait
   storage in Vercel Blob, atomic profile-plus-image reveal, and SSE handling for
   long-running image generations.
@@ -88,8 +94,6 @@ avoidance, WeChat login, and QQ login are intentionally out of scope.
 - Clerk production instance/keys and final launch allowlist review. The current
   production page still reports Clerk development keys.
 - External game/API authentication, quotas, versioning, and billing.
-- Durable multi-session NPC memory. The current dialogue UI labels the chat as
-  page-only.
 
 ## Current Architecture
 
@@ -172,6 +176,10 @@ printing their values.
 - Commit `7476027` deployed the real 2D Street View mode. A production smoke
   test at the default London coordinate rendered the panorama and Google
   controls without browser errors.
+- The durable-dialogue implementation passed 245 Vitest tests, TypeScript,
+  ESLint with zero errors, Drizzle schema validation, formatting, secret scan,
+  and a Next.js 16 production build. A signed-out local GET smoke test returned
+  the expected cache-disabled `401` without invoking Kimi.
 
 ## Google Maps Configuration Already Completed
 
@@ -214,7 +222,9 @@ live services. Never paste their environment values into an issue or chat.
    the final domain allowlists.
 2. Add production usage monitoring and budget alerts for Google Maps, Kimi,
    OpenRouter, and Blob before inviting more users.
-3. Design the external game API only after the browser workflow is stable.
+3. Add conversation controls such as clear/archive only after their deletion
+   and recovery semantics are designed.
+4. Design the external game API only after the browser workflow is stable.
 
 ## Prompt for Another Codex Chat
 

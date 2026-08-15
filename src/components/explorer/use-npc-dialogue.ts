@@ -2,20 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ChatResponseSchema } from "@/lib/ai/contracts";
+import {
+  ChatResponseSchema,
+  DialogueHistoryResponseSchema,
+  type DialogueHistoryTurn,
+} from "@/lib/ai/contracts";
 import { PublicApiErrorSchema } from "@/lib/generation/public-profile-contracts";
 
-export type DialogueTurn =
-  | { id: string; role: "user"; content: string }
-  | {
-      id: string;
-      role: "assistant";
-      content: string;
-      action: string;
-      emotion: string;
-    };
+export type DialogueTurn = DialogueHistoryTurn;
 
-type DialogueStatus = "idle" | "sending" | "error";
+type DialogueStatus = "loading" | "idle" | "sending" | "error";
 
 type DialogueState = {
   npcId: string;
@@ -28,8 +24,11 @@ const GENERIC_DIALOGUE_ERROR = "The NPC is temporarily unavailable. Try again.";
 
 class PublicDialogueError extends Error {}
 
-function emptyDialogue(npcId: string): DialogueState {
-  return { npcId, turns: [], status: "idle", error: null };
+function emptyDialogue(
+  npcId: string,
+  status: DialogueStatus = "loading",
+): DialogueState {
+  return { npcId, turns: [], status, error: null };
 }
 
 function newTurnId() {
@@ -52,28 +51,81 @@ export function useNpcDialogue(npcId: string, fetchImpl: typeof fetch = fetch) {
   const controllerRef = useRef<AbortController | null>(null);
   const requestVersionRef = useRef(0);
 
-  if (dialogue.npcId !== npcId) {
-    setDialogue(emptyDialogue(npcId));
-  }
-
   const currentDialogue =
     dialogue.npcId === npcId ? dialogue : emptyDialogue(npcId);
 
   useEffect(() => {
     controllerRef.current?.abort();
-    controllerRef.current = null;
-    requestVersionRef.current += 1;
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const requestVersion = requestVersionRef.current + 1;
+    requestVersionRef.current = requestVersion;
+
+    async function loadHistory() {
+      try {
+        const response = await fetchImpl(`/api/chat/${npcId}`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new PublicDialogueError(await readError(response));
+        }
+        const history = DialogueHistoryResponseSchema.parse(
+          await response.json(),
+        );
+        if (
+          controller.signal.aborted ||
+          requestVersion !== requestVersionRef.current
+        ) {
+          return;
+        }
+
+        setDialogue({
+          npcId,
+          turns: history.messages,
+          status: "idle",
+          error: null,
+        });
+        controllerRef.current = null;
+      } catch (requestError) {
+        if (
+          controller.signal.aborted ||
+          requestVersion !== requestVersionRef.current
+        ) {
+          return;
+        }
+
+        setDialogue({
+          npcId,
+          turns: [],
+          status: "error",
+          error:
+            requestError instanceof PublicDialogueError
+              ? requestError.message
+              : GENERIC_DIALOGUE_ERROR,
+        });
+        controllerRef.current = null;
+      }
+    }
+
+    void loadHistory();
 
     return () => {
-      controllerRef.current?.abort();
+      controller.abort();
       requestVersionRef.current += 1;
     };
-  }, [npcId]);
+  }, [fetchImpl, npcId]);
 
   const send = useCallback(
     async (content: string) => {
       const trimmedContent = content.trim();
-      if (!trimmedContent) return false;
+      if (
+        !trimmedContent ||
+        currentDialogue.status === "loading" ||
+        currentDialogue.status === "sending"
+      ) {
+        return false;
+      }
 
       controllerRef.current?.abort();
       const controller = new AbortController();
@@ -82,24 +134,18 @@ export function useNpcDialogue(npcId: string, fetchImpl: typeof fetch = fetch) {
       requestVersionRef.current = requestVersion;
 
       setDialogue((current) => ({
-        ...(current.npcId === npcId ? current : emptyDialogue(npcId)),
+        ...(current.npcId === npcId ? current : emptyDialogue(npcId, "idle")),
         status: "sending",
         error: null,
       }));
-
-      const messages = [
-        ...currentDialogue.turns.map((turn) => ({
-          role: turn.role,
-          content: turn.content,
-        })),
-        { role: "user" as const, content: trimmedContent },
-      ];
 
       try {
         const response = await fetchImpl(`/api/chat/${npcId}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ messages }),
+          body: JSON.stringify({
+            messages: [{ role: "user", content: trimmedContent }],
+          }),
           signal: controller.signal,
         });
 
@@ -119,15 +165,19 @@ export function useNpcDialogue(npcId: string, fetchImpl: typeof fetch = fetch) {
           npcId,
           turns: [
             ...currentDialogue.turns,
-            { id: newTurnId(), role: "user", content: trimmedContent },
             {
               id: newTurnId(),
-              role: "assistant",
+              role: "user" as const,
+              content: trimmedContent,
+            },
+            {
+              id: newTurnId(),
+              role: "assistant" as const,
               content: completion.reply.speech,
               action: completion.reply.action,
               emotion: completion.reply.emotion,
             },
-          ],
+          ].slice(-40),
           status: "idle",
           error: null,
         });
@@ -154,7 +204,7 @@ export function useNpcDialogue(npcId: string, fetchImpl: typeof fetch = fetch) {
         return false;
       }
     },
-    [currentDialogue.turns, fetchImpl, npcId],
+    [currentDialogue, fetchImpl, npcId],
   );
 
   return { ...currentDialogue, send };
